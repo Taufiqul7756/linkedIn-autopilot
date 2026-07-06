@@ -10,7 +10,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "prepare": "husky"
+    "prepare": "node -e \"if (process.env.CI) process.exit(0)\" && husky"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
