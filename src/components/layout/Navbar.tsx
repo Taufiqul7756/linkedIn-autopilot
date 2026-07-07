@@ -5,6 +5,7 @@ import { RiBellLine } from "react-icons/ri";
 import { LuSun } from "react-icons/lu";
 import { FaLinkedinIn } from "react-icons/fa";
 import { cn } from "@/utils/cn";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { label: "Leads", href: "/leads" },
@@ -15,6 +16,15 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  if (pathname === "/login") return null;
+
+  const initials = user?.username
+    ? user.username.slice(0, 2).toUpperCase()
+    : user?.email
+      ? user.email.slice(0, 2).toUpperCase()
+      : "?";
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-gray-200 bg-white px-4 md:gap-8 md:px-6">
@@ -64,7 +74,7 @@ export default function Navbar() {
         </button>
 
         <div className="flex h-8 w-8 select-none items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
-          JR
+          {initials}
         </div>
       </div>
     </header>
