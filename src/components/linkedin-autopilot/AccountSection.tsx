@@ -3,17 +3,21 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { FaLinkedinIn } from "react-icons/fa";
-import { LuGlobe, LuUpload } from "react-icons/lu";
+import { LuGlobe, LuUpload, LuLink, LuRefreshCw } from "react-icons/lu";
 import toast from "react-hot-toast";
-import { mockAccount, mockStats } from "@/lib/mock/linkedinAutopilot";
+import { mockStats } from "@/lib/mock/linkedinAutopilot";
 import { linkedinService } from "@/service/linkedinService";
+import { websiteService } from "@/service/websiteService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
+import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
 import LinkedInManageModal from "./LinkedInManageModal";
 import KnowledgeBaseUploadModal from "./KnowledgeBaseUploadModal";
+import AddUrlModal from "./AddUrlModal";
 
 export default function AccountSection() {
   const [linkedInModalOpen, setLinkedInModalOpen] = useState(false);
   const [kbUploadModalOpen, setKbUploadModalOpen] = useState(false);
+  const [addUrlModalOpen, setAddUrlModalOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
   const router = useRouter();
@@ -68,6 +72,58 @@ export default function AccountSection() {
 
   const isConnected = account?.connected ?? false;
 
+  // Fetch website knowledge base — poll while any entry is still processing
+  const { data: websites, isLoading: websitesLoading } = useQueryWithTokenRefresh(
+    ["websites"],
+    () => websiteService().getWebsites(),
+    {
+      refetchInterval: (query) => {
+        const results = query.state.data?.results ?? [];
+        const isProcessing = results.some((w) => w.status === "pending" || w.status === "crawling");
+        return isProcessing ? 4000 : false;
+      },
+    }
+  );
+  const website = websites?.results?.[0];
+
+  const recrawl = useMutationWithTokenRefresh(
+    () => websiteService().recrawl(website!.id, website!.url),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["websites"] });
+        toast.success("Re-crawl started!");
+      },
+      onError: () => {
+        toast.error("Failed to start re-crawl.");
+      },
+    }
+  );
+
+  const websiteStatusBadge = () => {
+    if (websitesLoading) return <span className="h-4 w-16 animate-pulse rounded bg-gray-200" />;
+    if (!website) return null;
+    if (website.status === "pending" || website.status === "crawling")
+      return (
+        <span className="flex items-center gap-1 text-xs font-medium text-amber-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
+          {website.status === "crawling" ? "Crawling" : "Indexing"}
+        </span>
+      );
+    if (website.status === "error")
+      return (
+        <span className="flex items-center gap-1 text-xs font-medium text-red-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />
+          Error
+        </span>
+      );
+    return (
+      <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+        <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+        Ready
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-3">
       {/* Account cards */}
@@ -118,18 +174,26 @@ export default function AccountSection() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-gray-900">Website knowledge base</span>
-              <span className="flex items-center gap-1 text-xs font-medium text-green-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-                Ready
-              </span>
+              {websiteStatusBadge()}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              <span className="text-blue-600">{mockAccount.knowledgeBase.url}</span>
-              {" · "}
-              {mockAccount.knowledgeBase.subtitle}
+              {websitesLoading ? (
+                "Loading..."
+              ) : website ? (
+                <span className="text-blue-600">{website.url}</span>
+              ) : (
+                "No website added yet"
+              )}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              onClick={() => setAddUrlModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <LuLink className="h-3.5 w-3.5" />
+              Add URL
+            </button>
             <button
               onClick={() => setKbUploadModalOpen(true)}
               className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
@@ -137,7 +201,25 @@ export default function AccountSection() {
               <LuUpload className="h-3.5 w-3.5" />
               Add sources
             </button>
-            <button className="shrink-0 rounded-lg border border-gray-200 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
+            <button
+              onClick={() => recrawl.mutate()}
+              disabled={
+                !website ||
+                recrawl.isPending ||
+                website?.status === "crawling" ||
+                website?.status === "pending"
+              }
+              className="flex items-center gap-1.5 shrink-0 rounded-lg border border-gray-200 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
+            >
+              <LuRefreshCw
+                className={`h-3.5 w-3.5 ${
+                  recrawl.isPending ||
+                  website?.status === "crawling" ||
+                  website?.status === "pending"
+                    ? "animate-spin"
+                    : ""
+                }`}
+              />
               Re-crawl
             </button>
           </div>
@@ -179,6 +261,7 @@ export default function AccountSection() {
         isOpen={kbUploadModalOpen}
         onClose={() => setKbUploadModalOpen(false)}
       />
+      <AddUrlModal isOpen={addUrlModalOpen} onClose={() => setAddUrlModalOpen(false)} />
     </div>
   );
 }
