@@ -6,12 +6,18 @@ import { cn } from "@/utils/cn";
 import { postsService } from "@/service/postsService";
 import { websiteService } from "@/service/websiteService";
 import { documentService } from "@/service/documentService";
+import { useQueryClient } from "@tanstack/react-query";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 
 const POST_COUNTS = [3, 5, 10];
-const TONE_OPTIONS = ["Professional", "Casual", "Witty", "Inspirational", "Educational"];
+const TONE_OPTIONS = [
+  { value: "professional", label: "Professional" },
+  { value: "conversational", label: "Conversational" },
+  { value: "bold", label: "Bold / Contrarian" },
+  { value: "storytelling", label: "Storytelling" },
+];
 const LENGTH_OPTIONS = ["Short", "Medium", "Long"] as const;
 const CONTENT_STYLES = [
   "Thought leadership",
@@ -25,8 +31,9 @@ const CONTENT_STYLES = [
 type Length = (typeof LENGTH_OPTIONS)[number];
 
 export default function GeneratePostsSection() {
+  const queryClient = useQueryClient();
   const [postCount, setPostCount] = useState(5);
-  const [tone, setTone] = useState("Professional");
+  const [tone, setTone] = useState("professional");
   const [length, setLength] = useState<Length>("Medium");
   const [contentStyle, setContentStyle] = useState("Thought leadership");
   const [prompt, setPrompt] = useState("");
@@ -65,7 +72,7 @@ export default function GeneratePostsSection() {
         website_profile: websiteId,
         documents: documentIds,
         prompt,
-        tone: tone.toLowerCase(),
+        tone,
         length: length.toLowerCase(),
         content_style: contentStyle.toLowerCase().replace(/\s+/g, "_"),
         count: postCount,
@@ -75,6 +82,9 @@ export default function GeneratePostsSection() {
         toast.success("Posts are being generated. Check drafts shortly.");
         setPrompt("");
         setSuggestions([]);
+        // Start polling in ReviewApprovalSection for 2 min
+        queryClient.setQueryData(["posts-generating"], Date.now());
+        queryClient.invalidateQueries({ queryKey: ["post-stats"] });
       },
       onError: (error: unknown) => {
         toast.error(extractErrorMessage(error));
@@ -141,8 +151,8 @@ export default function GeneratePostsSection() {
             className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {TONE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t}
+              <option key={t.value} value={t.value}>
+                {t.label}
               </option>
             ))}
           </select>

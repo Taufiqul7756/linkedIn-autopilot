@@ -105,7 +105,8 @@
 - [ ] Website crawler + knowledge base API
 - [x] Suggest prompts — POST /content/posts/suggest_prompts/ → clickable chips fill prompt textarea
 - [x] Generate posts — POST /content/posts/generate/ with website_profile, documents, tone, length, content_style, count, prompt
-- [ ] Approve / reject post mutations
+- [x] Approve / reject post mutations (POST approve, DELETE reject)
+- [x] Draft posts list — GET /content/posts/?status=draft with image_url display
 - [ ] Schedule post via API
 - [ ] Real-time agent status polling (WebSocket or polling)
 - [ ] Calendar view page

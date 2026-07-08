@@ -8,6 +8,7 @@ interface RejectConfirmModalProps {
   onClose: () => void;
   postExcerpt: string;
   onConfirm: () => void;
+  isConfirming?: boolean;
 }
 
 export default function RejectConfirmModal({
@@ -15,6 +16,7 @@ export default function RejectConfirmModal({
   onClose,
   postExcerpt,
   onConfirm,
+  isConfirming = false,
 }: RejectConfirmModalProps) {
   const [reason, setReason] = useState("");
 
@@ -67,9 +69,10 @@ export default function RejectConfirmModal({
         </button>
         <button
           onClick={handleReject}
-          className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+          disabled={isConfirming}
+          className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
         >
-          Reject post
+          {isConfirming ? "Rejecting…" : "Reject post"}
         </button>
       </div>
     </Modal>

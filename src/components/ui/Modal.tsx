@@ -7,13 +7,15 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  width?: "sm" | "md" | "lg";
+  width?: "sm" | "md" | "lg" | "xl" | "2xl";
 }
 
 const widthClass = {
   sm: "max-w-sm",
   md: "max-w-md",
   lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
 };
 
 export default function Modal({ isOpen, onClose, title, children, width = "md" }: ModalProps) {
@@ -34,9 +36,11 @@ export default function Modal({ isOpen, onClose, title, children, width = "md" }
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <div className={`relative w-full ${widthClass[width]} mx-4 rounded-2xl bg-white shadow-xl`}>
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+      <div
+        className={`relative flex w-full flex-col ${widthClass[width]} mx-4 max-h-[90vh] rounded-2xl bg-white shadow-xl`}
+      >
+        {/* Header — fixed */}
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
@@ -46,8 +50,8 @@ export default function Modal({ isOpen, onClose, title, children, width = "md" }
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5">{children}</div>
+        {/* Body — scrollable */}
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>
   );
