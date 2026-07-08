@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { FaLinkedinIn } from "react-icons/fa";
@@ -69,8 +69,6 @@ export default function AccountSection() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const callbackHandled = useRef(false);
-
   const code = searchParams.get("code");
   const state = searchParams.get("state");
 
@@ -80,10 +78,18 @@ export default function AccountSection() {
     () => linkedinService().getAccount()
   );
 
-  // Handle OAuth callback — fires once when redirected back with code + state
+  // Handle OAuth callback — fires once per unique state value (survives reloads)
   useEffect(() => {
-    if (!code || !state || callbackHandled.current) return;
-    callbackHandled.current = true;
+    if (!code || !state) return;
+
+    const sessionKey = `linkedin_callback_${state}`;
+    if (sessionStorage.getItem(sessionKey)) {
+      // Already handled — just clean the URL
+      router.replace("/linkedin-autopilot");
+      return;
+    }
+
+    sessionStorage.setItem(sessionKey, "1");
 
     linkedinService()
       .handleCallback(code, state)
@@ -94,6 +100,9 @@ export default function AccountSection() {
         } else {
           toast.error("Failed to connect LinkedIn account.");
         }
+      })
+      .catch(() => {
+        toast.error("Failed to connect LinkedIn account.");
       })
       .finally(() => {
         router.replace("/linkedin-autopilot");
