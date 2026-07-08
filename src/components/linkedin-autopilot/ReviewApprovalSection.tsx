@@ -40,13 +40,14 @@ export default function ReviewApprovalSection() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
-  const { data: generatingAt } = useQuery<number | null>({
+  // baseline = draft count at the moment generate was clicked (null = not polling)
+  const { data: baseline } = useQuery<number | null>({
     queryKey: ["posts-generating"],
     queryFn: () => null,
     enabled: false,
     staleTime: Infinity,
   });
-  const isPolling = generatingAt != null;
+  const isPolling = baseline !== null && baseline !== undefined;
 
   const { data: postsData, isLoading } = useQueryWithTokenRefresh(
     ["posts", "draft"],
@@ -56,20 +57,20 @@ export default function ReviewApprovalSection() {
         ? (query) => {
             const count =
               (query.state.data as { results?: unknown[] } | undefined)?.results?.length ?? 0;
-            return count > 0 ? false : 5000;
+            return count > (baseline ?? 0) ? false : 5000;
           }
         : false,
     }
   );
 
-  const isGenerating = isPolling && (postsData?.results?.length ?? 0) === 0;
+  const isGenerating = isPolling && (postsData?.results?.length ?? 0) <= (baseline ?? 0);
 
-  // Clear polling flag once posts have arrived
+  // Clear polling flag once new posts have arrived beyond the baseline
   useEffect(() => {
-    if (isPolling && (postsData?.results?.length ?? 0) > 0) {
+    if (isPolling && (postsData?.results?.length ?? 0) > (baseline ?? 0)) {
       queryClient.setQueryData(["posts-generating"], null);
     }
-  }, [postsData, isPolling, queryClient]);
+  }, [postsData, isPolling, baseline, queryClient]);
 
   const { data: account } = useQueryWithTokenRefresh(["linkedin-account"], () =>
     linkedinService().getAccount()

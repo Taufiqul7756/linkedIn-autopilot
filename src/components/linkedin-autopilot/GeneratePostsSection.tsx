@@ -82,8 +82,9 @@ export default function GeneratePostsSection() {
         toast.success("Posts are being generated. Check drafts shortly.");
         setPrompt("");
         setSuggestions([]);
-        // Start polling in ReviewApprovalSection for 2 min
-        queryClient.setQueryData(["posts-generating"], Date.now());
+        // Store current draft count as baseline — poll until count exceeds it
+        const currentDrafts = queryClient.getQueryData<{ results?: unknown[] }>(["posts", "draft"]);
+        queryClient.setQueryData(["posts-generating"], currentDrafts?.results?.length ?? 0);
         queryClient.invalidateQueries({ queryKey: ["post-stats"] });
       },
       onError: (error: unknown) => {
