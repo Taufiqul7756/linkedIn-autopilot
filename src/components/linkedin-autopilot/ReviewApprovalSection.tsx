@@ -1,15 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import {
-  LuImageOff,
-  LuClock,
-  LuPencil,
-  LuRefreshCw,
-  LuGlobe,
-  LuCheck,
-  LuLoader,
-} from "react-icons/lu";
+import { LuPencil, LuRefreshCw, LuGlobe, LuCheck, LuLoader } from "react-icons/lu";
 import toast from "react-hot-toast";
 import { postsService } from "@/service/postsService";
 import { linkedinService } from "@/service/linkedinService";
@@ -19,14 +11,6 @@ import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType } from "@/types/Post";
 import EditPostModal from "./EditPostModal";
 import RejectConfirmModal from "./RejectConfirmModal";
-
-function estimateReadTime(body: string | null | undefined): string {
-  const words = (body ?? "").trim().split(/\s+/).filter(Boolean).length;
-  const totalSeconds = Math.round((words / 200) * 60);
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
 
 function parseHashtags(raw: unknown): string[] {
   if (!raw) return [];
@@ -238,20 +222,12 @@ export default function ReviewApprovalSection() {
                   </div>
                 )}
 
-                {/* Metadata row */}
-                <div className="mb-4 flex flex-wrap items-center gap-4 border-t border-gray-100 pt-3 text-xs text-gray-400">
-                  {post.image_query && (
-                    <span className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2 py-1">
-                      <LuImageOff className="h-3.5 w-3.5" />
-                      Image prompt ready
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <LuClock className="h-3.5 w-3.5" />
-                    {estimateReadTime(post.body)} read
-                  </span>
-                  {post.cta && <span>CTA: {post.cta}</span>}
-                </div>
+                {/* CTA */}
+                {post.cta && (
+                  <div className="mb-4 border-t border-gray-100 pt-3">
+                    <span className="text-xs text-gray-400">CTA: {post.cta}</span>
+                  </div>
+                )}
 
                 {/* Action buttons */}
                 <div className="flex flex-wrap items-center justify-between gap-2">

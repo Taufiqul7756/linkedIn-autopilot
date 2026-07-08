@@ -43,32 +43,36 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 
 ### 4. Review & Approval
 - Shows drafts awaiting review (badge count)
+- Polls every 5s after Generate fires (via `["posts-generating"]` React Query cache flag); stops when posts arrive
+- Generating spinner shown while polling and no posts yet
 - Two-column card grid, each card showing:
-  - Author avatar, name, title, follower count, Draft badge
-  - Post body text + hashtags
-  - Metadata: image prompt ready, read time, CTA
-  - **Edit** → EditPostModal (content textarea with char count + hashtags input)
-  - **Regenerate** → re-generates post (future)
-  - **Reject** → RejectConfirmModal (warning, post excerpt, optional reason, Cancel + Reject)
-  - **Approve** → moves post to Approved status
-- "View all drafts" link
+  - Author avatar (initials from LinkedIn account name), Draft badge
+  - Post body text (whitespace-pre-line) + optional image
+  - Hashtags (prefixed with `#`)
+  - CTA line only (read time and "Image prompt ready" removed)
+  - **Edit** → EditPostModal
+  - **Regenerate** → (future)
+  - **Reject** → RejectConfirmModal → `DELETE /content/posts/{id}/`
+  - **Approve** → `POST /content/posts/{id}/approve/`
+- APIs: `GET /content/posts/?status=draft`, `POST /approve/`, `DELETE`
 
 ### 5. Post Management
-- Table with checkbox selection per row + select-all checkbox (indeterminate state)
-- **Bulk actions** (appear in header when rows selected):
-  - **Run Agent** → visible when ≥ 1 row selected
-  - **Delete** → visible when ≥ 2 rows selected
-- **Filter** → icon button opening dropdown: All / Draft / Scheduled / Published (with colored dots + checkmark for active)
+- Excludes draft posts (drafts live in Review & Approval only)
+- Table with checkbox selection + select-all (indeterminate state)
+- **Bulk delete** appears when ≥ 2 rows selected
+- **Page size selector** (2 / 5 / 10 / 15 / 20 per page, default 10) — passed as `page_size` to API
+- **Filter** dropdown: All / Approved / Scheduled / Published / Failed (no Draft option)
+- Pagination bar always visible at bottom (Previous / Next, page X · N total)
 - Columns: ☐ · POST · CREATED · SCHEDULED · PUBLISHED · STATUS · ENGAGEMENT · ACTIONS
-- Status pills: Draft (violet) · Approved (green) · Scheduled (blue) · Published (green) · Failed (red)
-- Engagement for Published: impressions · likes · comments · engagement rate %
+- Status pills: Approved (emerald) · Scheduled (blue) · Published (green) · Failed (red)
+- Engagement cell: Published → impressions/likes/comments/rate%; Scheduled → "In queue"; Approved → "Ready"; Failed → "Publishing failed"
 - Per-row actions based on status:
-  - Approved → **Schedule** → ScheduleModal (date + time + timezone)
-  - Scheduled → **Reschedule** → ScheduleModal (reschedule mode, shows current schedule) + ▶ play button
-  - Draft → **Review**
+  - Approved → **Schedule** → ScheduleModal → `POST /content/posts/{id}/schedule/`
+  - Scheduled → **Reschedule** → ScheduleModal (reschedule mode, shows current) + ▶ play button
   - Failed → **Retry**
-  - Published → **External link** icon
-- Three-dot dropdown on every row: **View post** · **Delete**
+  - Published → **External link** icon (opens LinkedIn post)
+- Three-dot dropdown per row: **View** → ViewPostModal · **Delete** → `DELETE /content/posts/{id}/`
+- APIs: `GET /content/posts/?page_size=N&page=N&status=X`, `POST /schedule/`, `DELETE`
 
 ### 6. Autopilot Agent Workflow
 - Live status indicator
@@ -90,19 +94,23 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 | --- | --- | --- |
 | `LinkedInManageModal` | Manage button | Connected account info, Connect your LinkedIn, Disconnect |
 | `KnowledgeBaseUploadModal` | Add sources button | Drag-and-drop file upload (PDF/DOC/DOCX), additional context textarea |
-| `ScheduleModal` | Schedule / Reschedule button | Post preview, date picker, time picker, timezone (read-only) |
-| `EditPostModal` | Edit button | Post content textarea (char count), hashtags input |
+| `ScheduleModal` | Schedule / Reschedule button | Post preview, date picker, time picker, timezone (read-only); `onConfirm(scheduledAt: string)` callback |
+| `EditPostModal` | Edit button | Post content textarea (char count), image section (view/remove/upload), hashtags input; image auto-uploads on select via `POST /upload_image/` |
 | `RejectConfirmModal` | Reject button | Warning icon, post excerpt, optional reason, Cancel + Reject |
+| `ViewPostModal` | Three-dot → View | Fetches `GET /content/posts/{id}/`; shows status, tone/length/style chips, body, image, hashtags, CTA, dates, engagement |
 
 ---
 
-## Data Model (mock)
+## Data Model (real API)
 
-| Entity | Key Fields |
+Defined in `src/types/Post.ts`:
+
+| Type | Key Fields |
 | --- | --- |
-| Post | id, excerpt, tags, style, created, scheduled, published, status, engagement |
-| DraftPost | id, author, content, hashtags, imagePromptReady, readTime, cta |
-| Agent | id, name, subtitle, status, description, detail, iconType, color |
+| `PostType` | id, body, hashtags (string[]), cta, image_url, image_query, tone, length, content_style, status, scheduled_at, published_at, linkedin_urn, engagement (PostEngagement\|null), created_at |
+| `PostEngagement` | impressions, likes, comments, rate, synced_at |
+| `PostStatsType` | drafts, approved, scheduled, published, failed, published_this_week, next_scheduled_at, avg_engagement (all nullable) |
+| `PaginatedPosts` | count, next, previous, results: PostType[] |
 
 ## Status Flows
 
@@ -111,12 +119,28 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
                                     ↘ [Failed → retry]
 ```
 
-## Out of Scope (v1 mock)
+## API Endpoints Used
 
-- Real LinkedIn OAuth integration
-- Actual AI post generation
-- Real-time agent status polling
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/content/posts/stats/` | Stats grid |
+| GET | `/content/posts/?status=draft` | Draft posts list |
+| GET | `/content/posts/?status=X&page=N&page_size=N` | Post management table |
+| GET | `/content/posts/{id}/` | View single post |
+| POST | `/content/posts/generate/` | Generate posts |
+| POST | `/content/posts/suggest_prompts/` | Prompt suggestions |
+| POST | `/content/posts/{id}/approve/` | Approve draft |
+| POST | `/content/posts/{id}/schedule/` | Schedule post |
+| POST | `/content/posts/{id}/upload_image/` | Upload post image (binary FormData, `image` field) |
+| PATCH | `/content/posts/{id}/` | Edit body / hashtags |
+| DELETE | `/content/posts/{id}/` | Reject / delete post |
+
+## Out of Scope (remaining)
+
+- Real-time agent status polling (WebSocket)
 - Calendar view
-- Full "View all drafts" page
+- "View all drafts" full page
 - Bulk delete confirmation modal
 - Run Agent API call
+- Image removal via PATCH (backend to support `image_url: ""`)
+- Hashtag PATCH (backend fixing)

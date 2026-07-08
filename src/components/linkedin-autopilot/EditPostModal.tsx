@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LuX, LuUpload } from "react-icons/lu";
+import { LuX, LuUpload, LuLoader } from "react-icons/lu";
 import toast from "react-hot-toast";
 import Modal from "@/components/ui/Modal";
 import { postsService } from "@/service/postsService";
@@ -37,18 +37,11 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
     return raw;
   });
   const [imageRemoved, setImageRemoved] = useState(false);
-  const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const saveMutation = useMutationWithTokenRefresh(
     (id: string) => {
-      if (newImageFile) {
-        const form = new FormData();
-        form.append("body", content);
-        form.append("hashtags", hashtags);
-        form.append("image_url", newImageFile);
-        return postsService().patchPost(id, form);
-      }
       const hashtagsArray = hashtags
         .split(/[\s,]+/)
         .map((t) => t.trim().replace(/^#/, ""))
@@ -72,15 +65,29 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
     }
   );
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setNewImageFile(file);
+    if (!file || !post) return;
+
+    // Show local preview immediately
     setNewImagePreview(URL.createObjectURL(file));
+    setImageRemoved(false);
+    setIsUploading(true);
+
+    try {
+      await postsService().uploadImage(post.id, file);
+      queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+      toast.success("Image uploaded.");
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+      setNewImagePreview(null);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleRemoveNew = () => {
-    setNewImageFile(null);
     setNewImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -88,9 +95,9 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
   if (!post) return null;
 
   const displayName = accountName ?? "LinkedIn User";
-  const showExistingImage = !!post.image_url && !imageRemoved && !newImageFile;
+  const showExistingImage = !!post.image_url && !imageRemoved && !newImagePreview;
   const showNewPreview = !!newImagePreview;
-  const showUploadArea = (imageRemoved || !post.image_url) && !newImageFile;
+  const showUploadArea = (imageRemoved || !post.image_url) && !newImagePreview;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Post" width="2xl">
@@ -156,13 +163,19 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
                 className="w-full object-cover"
                 style={{ maxHeight: 220 }}
               />
-              <button
-                onClick={handleRemoveNew}
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                title="Remove new image"
-              >
-                <LuX className="h-3.5 w-3.5" />
-              </button>
+              {isUploading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <LuLoader className="h-6 w-6 animate-spin text-white" />
+                </div>
+              ) : (
+                <button
+                  onClick={handleRemoveNew}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                  title="Remove image"
+                >
+                  <LuX className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
 
@@ -170,7 +183,8 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
           {showUploadArea && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 text-gray-400 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500"
+              disabled={isUploading}
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 text-gray-400 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500 disabled:opacity-50"
             >
               <LuUpload className="h-5 w-5" />
               <span className="text-sm font-medium">Click to upload an image</span>
@@ -187,7 +201,7 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
           />
 
           {/* Undo remove */}
-          {imageRemoved && !newImageFile && post.image_url && (
+          {imageRemoved && !newImagePreview && post.image_url && (
             <p className="mt-1.5 text-xs text-gray-400">
               Original image removed.{" "}
               <button
@@ -227,7 +241,7 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
         </button>
         <button
           onClick={() => saveMutation.mutate(post.id)}
-          disabled={content.trim() === "" || saveMutation.isPending}
+          disabled={content.trim() === "" || saveMutation.isPending || isUploading}
           className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saveMutation.isPending ? "Saving…" : "Save changes"}

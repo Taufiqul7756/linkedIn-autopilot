@@ -9,6 +9,14 @@ interface ScheduleModalProps {
   mode: "schedule" | "reschedule";
   postExcerpt: string;
   currentScheduled?: string | null;
+  onConfirm: (scheduledAt: string) => void;
+  isLoading?: boolean;
+}
+
+function formatScheduled(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
 }
 
 export default function ScheduleModal({
@@ -17,14 +25,17 @@ export default function ScheduleModal({
   mode,
   postExcerpt,
   currentScheduled,
+  onConfirm,
+  isLoading = false,
 }: ScheduleModalProps) {
   const today = new Date().toISOString().split("T")[0];
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("09:00");
 
   const handleConfirm = () => {
-    // mock — just close
-    onClose();
+    if (!date || !time) return;
+    const scheduledAt = new Date(`${date}T${time}`).toISOString();
+    onConfirm(scheduledAt);
   };
 
   return (
@@ -40,7 +51,7 @@ export default function ScheduleModal({
         {mode === "reschedule" && currentScheduled && (
           <p className="mt-1.5 text-xs text-gray-400">
             Currently scheduled:{" "}
-            <span className="font-medium text-blue-600">{currentScheduled}</span>
+            <span className="font-medium text-blue-600">{formatScheduled(currentScheduled)}</span>
           </p>
         )}
       </div>
@@ -80,7 +91,9 @@ export default function ScheduleModal({
           <LuMapPin className="h-4 w-4 shrink-0 text-gray-400" />
           <div>
             <p className="text-xs font-medium text-gray-700">Timezone</p>
-            <p className="text-xs text-gray-400">America/New_York (EST)</p>
+            <p className="text-xs text-gray-400">
+              {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            </p>
           </div>
         </div>
       </div>
@@ -89,16 +102,17 @@ export default function ScheduleModal({
       <div className="mt-6 flex items-center justify-end gap-2.5">
         <button
           onClick={onClose}
-          className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+          disabled={isLoading}
+          className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           onClick={handleConfirm}
-          disabled={!date || !time}
+          disabled={!date || !time || isLoading}
           className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {mode === "reschedule" ? "Reschedule" : "Schedule Post"}
+          {isLoading ? "Saving…" : mode === "reschedule" ? "Reschedule" : "Schedule Post"}
         </button>
       </div>
     </Modal>

@@ -145,9 +145,11 @@ Use `src/components/ui/Modal.tsx` for all modals. It handles backdrop, ESC key, 
 </Modal>
 ```
 
-- Widths: `"sm"` | `"md"` | `"lg"`
+- Widths: `"sm"` | `"md"` | `"lg"` | `"xl"` | `"2xl"`
+- Modal panel has `max-h-[90vh]` with scrollable body (`overflow-y-auto`) and pinned header (`shrink-0`)
 - Modal state lives in the parent component
 - Pass `null` as the selected item when closed; guard with `if (!item) return null` inside the modal
+- Use `key={item?.id ?? "no-item"}` on modals that hold local state — remounts with fresh state when item changes (avoids `useEffect` sync)
 
 ## Dropdown Pattern (click-outside)
 
@@ -183,9 +185,50 @@ Defined in `src/app/globals.css`:
 - Page background color: `#E9ECF5` (blue-lavender)
 - Section cards with blue-gray gradient: `bg-gradient-to-b from-[#ECEEF8] to-white`
 
+## Sibling Component Coordination (via React Query cache)
+
+To share state between sibling components without prop drilling, use a manually-set React Query cache key:
+
+```tsx
+// Producer (e.g. GeneratePostsSection) — set a flag after async action
+queryClient.setQueryData(["my-flag"], Date.now());
+
+// Consumer (e.g. ReviewApprovalSection) — subscribe with enabled: false
+const { data: flagValue } = useQuery({
+  queryKey: ["my-flag"],
+  queryFn: () => null,
+  enabled: false,
+  staleTime: Infinity,
+});
+const isActive = flagValue != null;
+
+// Clear the flag when done
+queryClient.setQueryData(["my-flag"], null);
+```
+
+Used for: post-generate polling flag `["posts-generating"]`.
+
+## File Upload Pattern
+
+For binary file uploads (e.g. image upload):
+
+```ts
+// Service
+uploadImage: (id: string, file: File) => {
+  const form = new FormData();
+  form.append("image", file);   // field name must match backend
+  return post<ResponseType>(`/resource/${id}/upload_image/`, form);
+},
+```
+
+- Show a local `URL.createObjectURL(file)` preview immediately
+- Auto-trigger upload in the `onChange` handler (no separate submit step)
+- Show spinner overlay on preview while uploading; clear on success/error
+
 ## Do Not
 
 - Read `process.env` directly in components
 - Use hardcoded colors — add to Tailwind CSS vars in `globals.css`
 - Use `any` type
 - Commit directly to `main` — always use PRs
+- Use `useEffect` to sync props into state inside a modal — use `key={item?.id}` on the modal in the parent instead

@@ -53,25 +53,28 @@
 ### Review & Approval Section
 - [x] Section header with awaiting badge + "View all drafts" link
 - [x] Two-column draft post cards
-- [x] Author info, Draft badge, post body, hashtags
-- [x] Image prompt / read time / CTA metadata row
-- [x] Edit button → EditPostModal (content textarea + hashtags input)
-- [x] Regenerate button
-- [x] Reject button → RejectConfirmModal (confirmation + optional reason)
-- [x] Approve button
+- [x] Author info, Draft badge, post body, image, hashtags
+- [x] CTA only in card footer (read time + image prompt removed)
+- [x] Post-generate polling: spins every 5s, stops when posts arrive
+- [x] Edit button → EditPostModal (content + image upload + hashtags)
+- [x] Regenerate button (UI only, future)
+- [x] Reject button → RejectConfirmModal → DELETE API
+- [x] Approve button → POST approve API
 
 ### Post Management Section
-- [x] Section header with timezone label
-- [x] Filter icon → dropdown (All / Draft / Scheduled / Published) with active indicator
+- [x] Filter dropdown: All / Approved / Scheduled / Published / Failed (no Draft)
+- [x] Drafts excluded from table (belong in Review & Approval)
+- [x] Page size selector (2 / 5 / 10 / 15 / 20), default 10 — passed as `page_size` to API
+- [x] Pagination bar always visible (Previous / Next, page info)
 - [x] Checkbox column with select-all (indeterminate state)
-- [x] "Delete" button appears when ≥ 2 rows selected (Run Agent removed — Leads page feature)
-- [x] Table with 8 columns (checkbox + POST + CREATED + SCHEDULED + PUBLISHED + STATUS + ENGAGEMENT + ACTIONS)
+- [x] Bulk delete when ≥ 2 rows selected
+- [x] Table: 8 columns (☐ + POST + CREATED + SCHEDULED + PUBLISHED + STATUS + ENGAGEMENT + ACTIONS)
 - [x] Status pills with color coding
-- [x] Engagement metrics (impressions, likes, comments, rate) for Published
-- [x] Schedule button (Approved rows) → ScheduleModal
-- [x] Reschedule button (Scheduled rows) → ScheduleModal in reschedule mode
-- [x] Review / Retry buttons for Draft / Failed rows
-- [x] Three-dot dropdown per row → View post / Delete
+- [x] Engagement cell (published metrics / queue / ready / failed states)
+- [x] Schedule → ScheduleModal → POST /schedule/ API
+- [x] Reschedule → ScheduleModal (reschedule mode) → POST /schedule/ API
+- [x] Retry / External link buttons for Failed / Published rows
+- [x] Three-dot dropdown: View → ViewPostModal · Delete → DELETE API
 
 ### Autopilot Agent Workflow Section
 - [x] Section header with Live badge
@@ -79,13 +82,14 @@
 - [x] 7 agent cards in 4+3 grid
 - [x] Per-agent status badges: Connected · Working (spinning) · Needs you
 
-### Modals (reusable base + 5 feature modals)
-- [x] `Modal.tsx` — base component (backdrop blur, ESC key, title, close button, 3 widths)
-- [x] `LinkedInManageModal` — connected account info + Connect your LinkedIn button + disconnect link
+### Modals (reusable base + 6 feature modals)
+- [x] `Modal.tsx` — base (backdrop blur, ESC, title, close, widths: sm/md/lg/xl/2xl, max-h-[90vh] scrollable body)
+- [x] `LinkedInManageModal` — connected account info + Connect + Disconnect
 - [x] `KnowledgeBaseUploadModal` — drag-and-drop file upload (PDF/DOC/DOCX) + text textarea
-- [x] `ScheduleModal` — date picker + time picker + timezone display (schedule & reschedule modes)
-- [x] `EditPostModal` — post content textarea with char count + hashtags input
-- [x] `RejectConfirmModal` — warning icon + confirmation + optional reason textarea
+- [x] `ScheduleModal` — date + time + timezone; `onConfirm(scheduledAt: string)` + `isLoading` props
+- [x] `EditPostModal` — content textarea (char count) + image (view/remove/auto-upload on select) + hashtags
+- [x] `RejectConfirmModal` — warning + post excerpt + Cancel + Reject
+- [x] `ViewPostModal` — full post detail fetched from API; status/tone/style chips, body, image, hashtags, CTA, dates, engagement
 
 ## Phase 4 — Polish
 
@@ -98,19 +102,24 @@
 - [ ] Loading skeleton states
 - [ ] Empty states (no posts, no connection)
 
-## Phase 5 — Real Integration (in progress)
+## Phase 5 — Real Integration
 
-- [x] LinkedIn OAuth connect flow (`/linkedin/connect/` → redirect → `/linkedin/callback/` → `/linkedin/account/`)
-- [x] Post stats cards — `GET /content/posts/stats/` → 2×4 grid (Drafts · Approved · Scheduled · Published · Failed · Published This Week · Next Scheduled · Avg. Engagement)
+- [x] LinkedIn OAuth connect flow
+- [x] Post stats grid — `GET /content/posts/stats/`
+- [x] Suggest prompts — `POST /content/posts/suggest_prompts/`
+- [x] Generate posts — `POST /content/posts/generate/` (async, returns `{status:"queued"}`)
+- [x] Post-generate polling via `["posts-generating"]` React Query cache flag
+- [x] Draft posts list — `GET /content/posts/?status=draft`
+- [x] Approve post — `POST /content/posts/{id}/approve/`
+- [x] Reject / delete post — `DELETE /content/posts/{id}/`
+- [x] Post management table — `GET /content/posts/?page_size=N&page=N&status=X`
+- [x] Schedule post — `POST /content/posts/{id}/schedule/` with `{ scheduled_at }`
+- [x] View single post — `GET /content/posts/{id}/`
+- [x] Upload post image — `POST /content/posts/{id}/upload_image/` (FormData, `image` field, auto-triggers on file select)
+- [x] Edit post body/hashtags — `PATCH /content/posts/{id}/`
 - [ ] Website crawler + knowledge base API
-- [x] Suggest prompts — POST /content/posts/suggest_prompts/ → clickable chips fill prompt textarea
-- [x] Generate posts — POST /content/posts/generate/ with website_profile, documents, tone, length, content_style, count, prompt
-- [x] Approve / reject post mutations (POST approve, DELETE reject)
-- [x] Draft posts list — GET /content/posts/?status=draft with image_url display
-- [ ] Schedule post via API
-- [ ] Real-time agent status polling (WebSocket or polling)
+- [ ] Real-time agent status polling
 - [ ] Calendar view page
 - [ ] "View all drafts" page
-- [ ] Analytics page
 - [ ] Bulk delete confirmation modal
-- [ ] Run Agent API call with selected post IDs
+- [ ] Run Agent API call
