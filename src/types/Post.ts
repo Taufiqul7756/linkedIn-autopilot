@@ -8,3 +8,25 @@ export type PostStatsType = {
   next_scheduled_at: string | null;
   avg_engagement: number | null;
 };
+
+export type GeneratePostsBody = {
+  website_profile: string;
+  documents: string[];
+  prompt: string;
+  tone: string;
+  length: string;
+  content_style: string;
+  count: number;
+};
+
+export type GeneratePostsResponse = {
+  status: string;
+};
+
+export type SuggestPromptsBody = {
+  website_profile: string;
+};
+
+export type SuggestPromptsResponse = {
+  prompts: string[];
+};

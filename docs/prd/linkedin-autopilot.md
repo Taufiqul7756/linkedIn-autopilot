@@ -36,9 +36,9 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 ### 3. Generate Posts from Knowledge Base
 - Controls: Number of posts (3/5/10), Tone (dropdown), Length (Short/Medium/Long), Content Style (dropdown)
 - Optional custom prompt textarea with placeholder
-- "Suggest prompts" shortcut button
+- "Suggest prompts" button → `POST /content/posts/suggest_prompts/` with `website_profile` UUID → shows clickable suggestion chips; clicking a chip fills the prompt textarea
 - Footer note: posts stay as drafts until approved
-- Primary action: Generate
+- Primary action: Generate → `POST /content/posts/generate/` with `{ website_profile, documents, prompt, tone, length, content_style, count }`; both buttons disabled if no website connected
 - Card has a gradient background: blue-gray (`#ECEEF8`) → white (top to bottom)
 
 ### 4. Review & Approval

@@ -103,7 +103,8 @@
 - [x] LinkedIn OAuth connect flow (`/linkedin/connect/` → redirect → `/linkedin/callback/` → `/linkedin/account/`)
 - [x] Post stats cards — `GET /content/posts/stats/` → 2×4 grid (Drafts · Approved · Scheduled · Published · Failed · Published This Week · Next Scheduled · Avg. Engagement)
 - [ ] Website crawler + knowledge base API
-- [ ] AI post generation (Claude API)
+- [x] Suggest prompts — POST /content/posts/suggest_prompts/ → clickable chips fill prompt textarea
+- [x] Generate posts — POST /content/posts/generate/ with website_profile, documents, tone, length, content_style, count, prompt
 - [ ] Approve / reject post mutations
 - [ ] Schedule post via API
 - [ ] Real-time agent status polling (WebSocket or polling)
