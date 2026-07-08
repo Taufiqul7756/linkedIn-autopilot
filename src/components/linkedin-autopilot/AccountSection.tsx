@@ -5,14 +5,59 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FaLinkedinIn } from "react-icons/fa";
 import { LuGlobe, LuUpload, LuLink, LuRefreshCw } from "react-icons/lu";
 import toast from "react-hot-toast";
-import { mockStats } from "@/lib/mock/linkedinAutopilot";
 import { linkedinService } from "@/service/linkedinService";
+import { postsService } from "@/service/postsService";
 import { websiteService } from "@/service/websiteService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
+import { PostStatsType } from "@/types/Post";
 import LinkedInManageModal from "./LinkedInManageModal";
 import KnowledgeBaseUploadModal from "./KnowledgeBaseUploadModal";
 import AddUrlModal from "./AddUrlModal";
+
+function formatNextScheduled(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (diffMs <= 0) return "—";
+  const h = Math.floor(diffMs / 3_600_000);
+  const m = Math.floor((diffMs % 3_600_000) / 60_000);
+  return h > 0 ? `in ${h}h ${m}m` : `in ${m}m`;
+}
+
+function buildStatCards(stats: PostStatsType | undefined) {
+  const pw = stats?.published_this_week ?? null;
+  const eng = stats?.avg_engagement ?? null;
+  return [
+    { label: "drafts", value: stats?.drafts ?? "—", note: null, noteColor: "" },
+    { label: "approved", value: stats?.approved ?? "—", note: null, noteColor: "" },
+    { label: "scheduled", value: stats?.scheduled ?? "—", note: null, noteColor: "" },
+    {
+      label: "published",
+      value: stats?.published ?? "—",
+      note: pw != null ? `+${pw} this week` : null,
+      noteColor: "green",
+    },
+    { label: "failed", value: stats?.failed ?? "—", note: null, noteColor: "" },
+    {
+      label: "published this week",
+      value: pw ?? "—",
+      note: null,
+      noteColor: "",
+    },
+    {
+      label: "next scheduled",
+      value: formatNextScheduled(stats?.next_scheduled_at),
+      note: null,
+      noteColor: "",
+    },
+    {
+      label: "avg. engagement",
+      value: eng != null ? `${eng.toFixed(1)}%` : "—",
+      note: null,
+      noteColor: "",
+    },
+  ];
+}
 
 export default function AccountSection() {
   const [linkedInModalOpen, setLinkedInModalOpen] = useState(false);
@@ -85,6 +130,11 @@ export default function AccountSection() {
     }
   );
   const website = websites?.results?.[0];
+
+  // Fetch post stats
+  const { data: postStats } = useQueryWithTokenRefresh(["post-stats"], () =>
+    postsService().getPostStats()
+  );
 
   const recrawl = useMutationWithTokenRefresh(
     () => websiteService().recrawl(website!.id, website!.url),
@@ -226,9 +276,9 @@ export default function AccountSection() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {mockStats.map((stat) => (
+      {/* Stats grid — 2 rows × 4 cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {buildStatCards(postStats).map((stat) => (
           <div key={stat.label} className="rounded-xl border border-gray-200 bg-white px-5 py-4">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
               {stat.label}

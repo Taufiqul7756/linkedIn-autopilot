@@ -27,7 +27,11 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 - **Website knowledge base card**: Shows crawl status (Ready/Stale), domain, facet count.
   - Action: **Add sources** → opens KnowledgeBaseUploadModal (file upload: PDF/DOC/DOCX + text textarea)
   - Action: **Re-crawl** → triggers re-index of website
-- **Stats row** (5 metrics): Awaiting review · Approved · Scheduled · Published · Avg. Engagement
+- **Stats grid** (2 rows × 4 cards, real API): Row 1 — Drafts · Approved · Scheduled · Published; Row 2 — Failed · Published This Week · Next Scheduled · Avg. Engagement
+  - API: `GET /api/v1/content/posts/stats/`
+  - Response fields: `drafts`, `approved`, `scheduled`, `published`, `failed`, `published_this_week`, `next_scheduled_at` (ISO), `avg_engagement`
+  - `next_scheduled_at` displayed as relative time ("in 2h 40m")
+  - `avg_engagement` displayed as percentage with 1 decimal
 
 ### 3. Generate Posts from Knowledge Base
 - Controls: Number of posts (3/5/10), Tone (dropdown), Length (Short/Medium/Long), Content Style (dropdown)

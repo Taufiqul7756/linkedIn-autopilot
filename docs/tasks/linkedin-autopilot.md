@@ -38,7 +38,7 @@
 ### Account & Knowledge Base Section
 - [x] LinkedIn account card (Connected status, Manage button → LinkedInManageModal)
 - [x] Website knowledge base card (Ready status, Add Sources button → KnowledgeBaseUploadModal, Re-crawl button)
-- [x] 5 stats cards row (Awaiting · Approved · Scheduled · Published · Avg Engagement)
+- [x] 5 stats cards row (Awaiting · Approved · Scheduled · Published · Avg Engagement) — replaced with real API (see Phase 5)
 
 ### Generate Posts Section
 - [x] Number of posts toggle (3 / 5 / 10)
@@ -101,6 +101,7 @@
 ## Phase 5 — Real Integration (in progress)
 
 - [x] LinkedIn OAuth connect flow (`/linkedin/connect/` → redirect → `/linkedin/callback/` → `/linkedin/account/`)
+- [x] Post stats cards — `GET /content/posts/stats/` → 2×4 grid (Drafts · Approved · Scheduled · Published · Failed · Published This Week · Next Scheduled · Avg. Engagement)
 - [ ] Website crawler + knowledge base API
 - [ ] AI post generation (Claude API)
 - [ ] Approve / reject post mutations
