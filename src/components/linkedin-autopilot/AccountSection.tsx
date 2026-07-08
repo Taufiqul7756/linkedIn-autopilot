@@ -202,7 +202,7 @@ export default function AccountSection() {
               Add sources
             </button>
             <button
-              onClick={() => recrawl.mutate()}
+              onClick={() => recrawl.mutate(undefined)}
               disabled={
                 !website ||
                 recrawl.isPending ||
