@@ -69,7 +69,13 @@ export default function AccountConnectionSection() {
       </div>
 
       {/* Modals */}
-      <LinkedInManageModal isOpen={linkedInModalOpen} onClose={() => setLinkedInModalOpen(false)} />
+      <LinkedInManageModal
+        isOpen={linkedInModalOpen}
+        onClose={() => setLinkedInModalOpen(false)}
+        account={{ connected: true, member_urn: "", name: "Jordan Rivera" }}
+        onConnect={() => {}}
+        isConnecting={false}
+      />
       <KnowledgeBaseUploadModal
         isOpen={kbUploadModalOpen}
         onClose={() => setKbUploadModalOpen(false)}
