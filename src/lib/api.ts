@@ -7,9 +7,30 @@ declare module "axios" {
   }
 }
 
+const AUTH_KEY = "auth";
+
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(AUTH_KEY);
+    if (!stored) return null;
+    return (JSON.parse(stored) as { token?: string }).token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const api = axios.create({
   baseURL: Config.API_URL,
-  withCredentials: true,
+  withCredentials: false,
+});
+
+api.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  if (token) {
+    config.headers.Authorization = `Token ${token}`;
+  }
+  return config;
 });
 
 let refreshPromise: Promise<void> | null = null;

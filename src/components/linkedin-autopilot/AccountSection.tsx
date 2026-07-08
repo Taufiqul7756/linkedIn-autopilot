@@ -1,14 +1,72 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { FaLinkedinIn } from "react-icons/fa";
 import { LuGlobe, LuUpload } from "react-icons/lu";
+import toast from "react-hot-toast";
 import { mockAccount, mockStats } from "@/lib/mock/linkedinAutopilot";
+import { linkedinService } from "@/service/linkedinService";
+import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import LinkedInManageModal from "./LinkedInManageModal";
 import KnowledgeBaseUploadModal from "./KnowledgeBaseUploadModal";
 
 export default function AccountSection() {
   const [linkedInModalOpen, setLinkedInModalOpen] = useState(false);
   const [kbUploadModalOpen, setKbUploadModalOpen] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const callbackHandled = useRef(false);
+
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+
+  // Fetch live account status
+  const { data: account, isLoading: accountLoading } = useQueryWithTokenRefresh(
+    ["linkedin-account"],
+    () => linkedinService().getAccount()
+  );
+
+  // Handle OAuth callback — fires once when redirected back with code + state
+  useEffect(() => {
+    if (!code || !state || callbackHandled.current) return;
+    callbackHandled.current = true;
+
+    linkedinService()
+      .handleCallback(code, state)
+      .then((result) => {
+        if (result) {
+          queryClient.invalidateQueries({ queryKey: ["linkedin-account"] });
+          toast.success("LinkedIn account connected!");
+        } else {
+          toast.error("Failed to connect LinkedIn account.");
+        }
+      })
+      .finally(() => {
+        router.replace("/linkedin-autopilot");
+      });
+  }, [code, state, queryClient, router]);
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      const result = await linkedinService().getConnectUrl();
+      if (result?.authorize_url) {
+        window.location.href = result.authorize_url;
+      } else {
+        toast.error("Failed to get LinkedIn authorization URL.");
+        setIsConnecting(false);
+      }
+    } catch {
+      toast.error("Failed to initiate LinkedIn connection.");
+      setIsConnecting(false);
+    }
+  };
+
+  const isConnected = account?.connected ?? false;
 
   return (
     <div className="space-y-3">
@@ -22,13 +80,26 @@ export default function AccountSection() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-gray-900">LinkedIn account</span>
-              <span className="flex items-center gap-1 text-xs font-medium text-green-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-                Connected
-              </span>
+              {accountLoading ? (
+                <span className="h-4 w-20 animate-pulse rounded bg-gray-200" />
+              ) : isConnected ? (
+                <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+                  Connected
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-xs font-medium text-gray-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-gray-400 inline-block" />
+                  Not connected
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              {mockAccount.linkedin.name} · {mockAccount.linkedin.subtitle}
+              {accountLoading
+                ? "Loading..."
+                : isConnected
+                  ? `${account?.name} · authorized via OAuth · publish enabled`
+                  : "Connect your LinkedIn to start publishing"}
             </p>
           </div>
           <button
@@ -97,7 +168,13 @@ export default function AccountSection() {
       </div>
 
       {/* Modals */}
-      <LinkedInManageModal isOpen={linkedInModalOpen} onClose={() => setLinkedInModalOpen(false)} />
+      <LinkedInManageModal
+        isOpen={linkedInModalOpen}
+        onClose={() => setLinkedInModalOpen(false)}
+        account={account}
+        onConnect={handleConnect}
+        isConnecting={isConnecting}
+      />
       <KnowledgeBaseUploadModal
         isOpen={kbUploadModalOpen}
         onClose={() => setKbUploadModalOpen(false)}

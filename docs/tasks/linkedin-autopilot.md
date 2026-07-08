@@ -98,9 +98,9 @@
 - [ ] Loading skeleton states
 - [ ] Empty states (no posts, no connection)
 
-## Phase 5 — Real Integration (future)
+## Phase 5 — Real Integration (in progress)
 
-- [ ] LinkedIn OAuth connect flow
+- [x] LinkedIn OAuth connect flow (`/linkedin/connect/` → redirect → `/linkedin/callback/` → `/linkedin/account/`)
 - [ ] Website crawler + knowledge base API
 - [ ] AI post generation (Claude API)
 - [ ] Approve / reject post mutations

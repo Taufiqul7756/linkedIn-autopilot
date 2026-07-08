@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import PageHeader from "@/components/linkedin-autopilot/PageHeader";
 import AccountSection from "@/components/linkedin-autopilot/AccountSection";
 import GeneratePostsSection from "@/components/linkedin-autopilot/GeneratePostsSection";
@@ -14,7 +15,9 @@ export default function LinkedInAutopilotPage() {
     <div className="flex-1 bg-[#E9ECF5] px-4 py-4 sm:px-6 sm:py-6">
       <div className="mx-auto max-w-screen-xl space-y-4 sm:space-y-5">
         <PageHeader />
-        <AccountSection />
+        <Suspense fallback={null}>
+          <AccountSection />
+        </Suspense>
         <GeneratePostsSection />
         <ReviewApprovalSection />
         <PostManagementSection />
