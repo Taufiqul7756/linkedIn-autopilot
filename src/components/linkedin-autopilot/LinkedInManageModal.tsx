@@ -9,6 +9,8 @@ interface LinkedInManageModalProps {
   account: LinkedInAccountResponse | undefined;
   onConnect: () => void;
   isConnecting: boolean;
+  onDisconnect: () => void;
+  isDisconnecting: boolean;
 }
 
 export default function LinkedInManageModal({
@@ -17,6 +19,8 @@ export default function LinkedInManageModal({
   account,
   onConnect,
   isConnecting,
+  onDisconnect,
+  isDisconnecting,
 }: LinkedInManageModalProps) {
   const isConnected = account?.connected ?? false;
 
@@ -82,9 +86,13 @@ export default function LinkedInManageModal({
       {/* Disconnect link — only when connected */}
       {isConnected && (
         <div className="mt-4 flex justify-center">
-          <button className="flex items-center gap-1.5 text-xs text-red-400 transition-colors hover:text-red-600">
+          <button
+            onClick={onDisconnect}
+            disabled={isDisconnecting}
+            className="flex items-center gap-1.5 text-xs text-red-400 transition-colors hover:text-red-600 disabled:opacity-50"
+          >
             <LuUnlink className="h-3.5 w-3.5" />
-            Disconnect account
+            {isDisconnecting ? "Disconnecting…" : "Disconnect account"}
           </button>
         </div>
       )}

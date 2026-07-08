@@ -75,6 +75,8 @@ export default function AccountConnectionSection() {
         account={{ connected: true, member_urn: "", name: "Jordan Rivera" }}
         onConnect={() => {}}
         isConnecting={false}
+        onDisconnect={() => {}}
+        isDisconnecting={false}
       />
       <KnowledgeBaseUploadModal
         isOpen={kbUploadModalOpen}

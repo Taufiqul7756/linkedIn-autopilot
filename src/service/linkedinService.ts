@@ -1,4 +1,4 @@
-import { get } from "@/lib/api";
+import { get, del } from "@/lib/api";
 import {
   LinkedInAccountResponse,
   LinkedInCallbackResponse,
@@ -12,4 +12,5 @@ export const linkedinService = () => ({
       `/linkedin/callback/?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
     ),
   getAccount: () => get<LinkedInAccountResponse>("/linkedin/account/"),
+  disconnectAccount: () => del<void>("/linkedin/account/"),
 });

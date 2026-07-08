@@ -64,6 +64,7 @@ export default function AccountSection() {
   const [kbUploadModalOpen, setKbUploadModalOpen] = useState(false);
   const [addUrlModalOpen, setAddUrlModalOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,6 +113,20 @@ export default function AccountSection() {
     } catch {
       toast.error("Failed to initiate LinkedIn connection.");
       setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await linkedinService().disconnectAccount();
+      queryClient.invalidateQueries({ queryKey: ["linkedin-account"] });
+      toast.success("LinkedIn account disconnected.");
+      setLinkedInModalOpen(false);
+    } catch {
+      toast.error("Failed to disconnect LinkedIn account.");
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -306,6 +321,8 @@ export default function AccountSection() {
         account={account}
         onConnect={handleConnect}
         isConnecting={isConnecting}
+        onDisconnect={handleDisconnect}
+        isDisconnecting={isDisconnecting}
       />
       <KnowledgeBaseUploadModal
         isOpen={kbUploadModalOpen}
