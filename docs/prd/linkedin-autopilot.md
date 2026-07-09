@@ -51,7 +51,7 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
   - Post body text (whitespace-pre-line) + optional image
   - Hashtags (prefixed with `#`)
   - **Edit** → EditPostModal
-  - **Regenerate Post** → (future API)
+  - **Regenerate Post** → RegeneratePostConfirmModal ("your current version will be lost") → (future API)
   - **Regenerate Image** → toggles an image prompt textarea panel below the card buttons; panel has a "Generate Image" button (disabled until API wired up)
   - **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
   - **Approve** → `POST /content/posts/{id}/approve/`
@@ -99,7 +99,8 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 | `ScheduleModal` | Schedule / Reschedule button | Post preview, date picker, time picker, timezone (read-only); `onConfirm(scheduledAt: string)` callback |
 | `EditPostModal` | Edit button | Post content textarea (char count), image section (view/remove/upload), hashtags input; image auto-uploads on select via `POST /upload_image/` |
 | `RejectConfirmModal` | Delete button (Review & Approval + Post Management three-dot) | Warning icon, post excerpt, Cancel + Delete post |
-| `ViewPostModal` | Three-dot → View | Fetches `GET /content/posts/{id}/`; shows status, tone/length/style chips, body, image, hashtags, CTA, dates, engagement |
+| `ViewPostModal` | Three-dot → View | Fetches `GET /content/posts/{id}/`; shows status, tone/length/style chips, body, image, hashtags, dates, engagement |
+| `RegeneratePostConfirmModal` | Regenerate Post button | Amber warning icon, post excerpt, warning that current version will be lost; Cancel + Regenerate |
 
 ---
 

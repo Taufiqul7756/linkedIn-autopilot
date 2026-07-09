@@ -56,7 +56,7 @@
 - [x] Author info, Draft badge, post body, image, hashtags (no CTA)
 - [x] Post-generate polling: spins every 5s, stops when posts arrive
 - [x] Edit button → EditPostModal (content + image upload + hashtags)
-- [x] Regenerate Post button (UI only, future API)
+- [x] Regenerate Post button → RegeneratePostConfirmModal (warns current version will be lost; future API)
 - [x] Regenerate Image button → toggles image prompt textarea panel with Generate Image button (disabled, future API)
 - [x] Delete button → RejectConfirmModal → DELETE API
 - [x] Approve button → POST approve API
@@ -89,7 +89,8 @@
 - [x] `ScheduleModal` — date + time + timezone; `onConfirm(scheduledAt: string)` + `isLoading` props
 - [x] `EditPostModal` — content textarea (char count) + image (view/remove/auto-upload on select) + hashtags
 - [x] `RejectConfirmModal` — warning + post excerpt + Cancel + Delete post (used in Review & Approval and Post Management)
-- [x] `ViewPostModal` — full post detail fetched from API; status/tone/style chips, body, image, hashtags, CTA, dates, engagement
+- [x] `ViewPostModal` — full post detail fetched from API; status/tone/style chips, body, image, hashtags, dates, engagement (no CTA)
+- [x] `RegeneratePostConfirmModal` — amber icon, post excerpt, loss warning, Cancel + Regenerate
 
 ## Phase 4 — Polish
 

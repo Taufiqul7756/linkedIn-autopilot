@@ -1,5 +1,5 @@
 "use client";
-import { LuEye, LuThumbsUp, LuMessageSquare, LuCalendar, LuClock, LuTag } from "react-icons/lu";
+import { LuEye, LuThumbsUp, LuMessageSquare, LuCalendar, LuClock } from "react-icons/lu";
 import Modal from "@/components/ui/Modal";
 import { postsService } from "@/service/postsService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
@@ -110,16 +110,6 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
                   {tag}
                 </span>
               ))}
-            </div>
-          )}
-
-          {/* CTA */}
-          {post.cta && (
-            <div className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-              <LuTag className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <span className="text-xs text-gray-600">
-                <span className="font-medium">CTA:</span> {post.cta}
-              </span>
             </div>
           )}
 

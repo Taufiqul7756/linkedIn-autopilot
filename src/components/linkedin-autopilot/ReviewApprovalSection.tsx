@@ -20,6 +20,7 @@ import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType } from "@/types/Post";
 import EditPostModal from "./EditPostModal";
 import RejectConfirmModal from "./RejectConfirmModal";
+import RegeneratePostConfirmModal from "./RegeneratePostConfirmModal";
 
 function parseHashtags(raw: unknown): string[] {
   if (!raw) return [];
@@ -49,6 +50,7 @@ export default function ReviewApprovalSection() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [imagePromptPostId, setImagePromptPostId] = useState<string | null>(null);
   const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({});
+  const [regenerateTarget, setRegenerateTarget] = useState<PostType | null>(null);
 
   // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
   // baseline = draft count at the moment generate was clicked (null = not polling)
@@ -241,7 +243,10 @@ export default function ReviewApprovalSection() {
                       <LuPencil className="h-3.5 w-3.5" />
                       Edit
                     </button>
-                    <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
+                    <button
+                      onClick={() => setRegenerateTarget(post)}
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+                    >
                       <LuRefreshCw className="h-3.5 w-3.5" />
                       Regenerate Post
                     </button>
@@ -312,6 +317,17 @@ export default function ReviewApprovalSection() {
           })}
         </div>
       )}
+
+      {/* Regenerate post confirmation modal */}
+      <RegeneratePostConfirmModal
+        key={regenerateTarget?.id ?? "no-regenerate"}
+        isOpen={regenerateTarget !== null}
+        onClose={() => setRegenerateTarget(null)}
+        postExcerpt={regenerateTarget?.body.split("\n")[0] ?? ""}
+        onConfirm={() => {
+          // TODO: wire up regenerate API
+        }}
+      />
 
       {/* Edit modal */}
       <EditPostModal
