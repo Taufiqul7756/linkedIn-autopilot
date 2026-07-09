@@ -52,7 +52,7 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
   - Hashtags (prefixed with `#`)
   - **Edit** → EditPostModal
   - **Regenerate Post** → RegeneratePostConfirmModal ("your current version will be lost") → (future API)
-  - **Regenerate Image** → toggles an image prompt textarea panel below the card buttons; panel has a "Generate Image" button (disabled until API wired up)
+  - **Regenerate Image** → toggles an image prompt textarea panel below the card buttons; "Generate Image" button enabled when prompt is non-empty → `POST /content/posts/{id}/generate_image/`; on success re-fetches draft list so card auto-updates with new `image_url`
   - **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
   - **Approve** → `POST /content/posts/{id}/approve/`
 - No "View all drafts" link
@@ -138,6 +138,7 @@ Defined in `src/types/Post.ts`:
 | POST | `/content/posts/{id}/upload_image/` | Upload post image (binary FormData, `image` field) |
 | PATCH | `/content/posts/{id}/` | Edit body / hashtags |
 | DELETE | `/content/posts/{id}/` | Delete post |
+| POST | `/content/posts/{id}/generate_image/` | Generate image for post (`{ image_prompt }` → updates `image_url`) |
 | GET | `/websites/` | List indexed websites |
 | POST | `/websites/` | Add website URL |
 | DELETE | `/websites/{id}/` | Remove website URL |
@@ -152,6 +153,5 @@ Defined in `src/types/Post.ts`:
 - Bulk delete confirmation modal
 - Run Agent API call
 - Regenerate Post API
-- Regenerate Image API (`image_prompt` field)
 - Image removal via PATCH (backend to support `image_url: ""`)
 - Hashtag PATCH (backend fixing)

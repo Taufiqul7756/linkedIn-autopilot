@@ -37,6 +37,8 @@ export const postsService = () => ({
   },
   approvePost: (id: string) => post<PostType>(`/content/posts/${id}/approve/`),
   rejectPost: (id: string) => del<void>(`/content/posts/${id}/`),
+  generateImage: (id: string, image_prompt: string) =>
+    post<PostType>(`/content/posts/${id}/generate_image/`, { image_prompt }),
   generatePosts: (body: GeneratePostsBody) =>
     post<GeneratePostsResponse>("/content/posts/generate/", body),
   suggestPrompts: (body: SuggestPromptsBody) =>

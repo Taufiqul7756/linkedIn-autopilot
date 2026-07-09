@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   LuPencil,
@@ -33,6 +33,84 @@ function parseHashtags(raw: unknown): string[] {
   return items.filter((t) => t.length > 0).map((t) => (t.startsWith("#") ? t : `#${t}`));
 }
 
+function ImagePromptDropdown({
+  prompt,
+  onPromptChange,
+  onGenerate,
+  isGenerating,
+}: {
+  prompt: string;
+  onPromptChange: (val: string) => void;
+  onGenerate: () => void;
+  isGenerating: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const wasGenerating = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Close dropdown when generation finishes
+  useEffect(() => {
+    if (wasGenerating.current && !isGenerating) setOpen(false);
+    wasGenerating.current = isGenerating;
+  }, [isGenerating]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+      >
+        <LuImage className="h-3.5 w-3.5" />
+        Regenerate Image
+      </button>
+
+      {open && (
+        <div className="absolute left-1/2 top-full z-30 mt-1.5 w-96 -translate-x-1/2 rounded-xl border border-blue-100 bg-blue-50 p-3.5 shadow-lg">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-blue-700">Image prompt</span>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-blue-300 transition-colors hover:text-blue-500"
+            >
+              <LuX className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <textarea
+            rows={3}
+            value={prompt}
+            onChange={(e) => onPromptChange(e.target.value)}
+            placeholder="Describe the image you want to generate…"
+            className="w-full resize-none rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          />
+          <div className="mt-2 flex justify-center">
+            <button
+              onClick={onGenerate}
+              disabled={!prompt.trim() || isGenerating}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <LuLoader className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <LuSparkles className="h-3.5 w-3.5" />
+              )}
+              {isGenerating ? "Generating…" : "Generate Image"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -48,9 +126,9 @@ export default function ReviewApprovalSection() {
   const [rejectPost, setRejectPost] = useState<PostType | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [imagePromptPostId, setImagePromptPostId] = useState<string | null>(null);
   const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({});
   const [regenerateTarget, setRegenerateTarget] = useState<PostType | null>(null);
+  const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
 
   // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
   // baseline = draft count at the moment generate was clicked (null = not polling)
@@ -125,6 +203,28 @@ export default function ReviewApprovalSection() {
     }
   );
 
+  const generateImageMutation = useMutationWithTokenRefresh(
+    ({ id, prompt }: { id: string; prompt: string }) => postsService().generateImage(id, prompt),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+        toast.success("Image generated!");
+        setGeneratingImageId(null);
+      },
+      onError: (error: unknown) => {
+        toast.error(extractErrorMessage(error) || "Failed to generate image.");
+        setGeneratingImageId(null);
+      },
+    }
+  );
+
+  const handleGenerateImage = (postId: string) => {
+    const prompt = imagePrompts[postId]?.trim();
+    if (!prompt) return;
+    setGeneratingImageId(postId);
+    generateImageMutation.mutate({ id: postId, prompt });
+  };
+
   const handleApprove = (id: string) => {
     setApprovingId(id);
     approveMutation.mutate(id);
@@ -161,7 +261,7 @@ export default function ReviewApprovalSection() {
 
       {/* Generating state — polling for new posts */}
       {!isLoading && isGenerating && (
-        <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50 py-12 text-center">
+        <div className="mb-4 rounded-xl border border-dashed border-blue-200 bg-blue-50 py-12 text-center">
           <LuLoader className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-500" />
           <p className="text-sm font-medium text-blue-600">Generating posts…</p>
           <p className="mt-1 text-xs text-blue-400">This usually takes 5–10 seconds.</p>
@@ -250,15 +350,14 @@ export default function ReviewApprovalSection() {
                       <LuRefreshCw className="h-3.5 w-3.5" />
                       Regenerate Post
                     </button>
-                    <button
-                      onClick={() =>
-                        setImagePromptPostId((prev) => (prev === post.id ? null : post.id))
+                    <ImagePromptDropdown
+                      prompt={imagePrompts[post.id] ?? ""}
+                      onPromptChange={(val) =>
+                        setImagePrompts((prev) => ({ ...prev, [post.id]: val }))
                       }
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50"
-                    >
-                      <LuImage className="h-3.5 w-3.5" />
-                      Regenerate Image
-                    </button>
+                      onGenerate={() => handleGenerateImage(post.id)}
+                      isGenerating={generatingImageId === post.id}
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -278,40 +377,6 @@ export default function ReviewApprovalSection() {
                     </button>
                   </div>
                 </div>
-
-                {/* Image prompt panel */}
-                {imagePromptPostId === post.id && (
-                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3.5">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-blue-700">Image prompt</span>
-                      <button
-                        onClick={() => setImagePromptPostId(null)}
-                        className="text-blue-300 transition-colors hover:text-blue-500"
-                      >
-                        <LuX className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <textarea
-                      rows={3}
-                      value={imagePrompts[post.id] ?? ""}
-                      onChange={(e) =>
-                        setImagePrompts((prev) => ({ ...prev, [post.id]: e.target.value }))
-                      }
-                      placeholder="Describe the image you want to generate… e.g. 'A minimalist office scene with warm lighting'"
-                      className="w-full resize-none rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                    />
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        disabled
-                        className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white opacity-60"
-                        title="API coming soon"
-                      >
-                        <LuSparkles className="h-3.5 w-3.5" />
-                        Generate Image
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}

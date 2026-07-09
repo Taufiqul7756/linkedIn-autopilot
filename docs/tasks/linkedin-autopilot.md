@@ -128,5 +128,5 @@
 - [ ] Calendar view page
 - [ ] Bulk delete confirmation modal
 - [ ] Run Agent API call
+- [x] Regenerate Image API — `POST /content/posts/{id}/generate_image/` with `{ image_prompt }`; auto-updates card image_url on success
 - [ ] Regenerate Post API
-- [ ] Regenerate Image API
