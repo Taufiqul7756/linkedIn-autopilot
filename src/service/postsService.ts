@@ -16,6 +16,8 @@ export const postsService = () => ({
     const q = new URLSearchParams();
     if (status && status !== "all") {
       q.set("status", status);
+    } else {
+      q.set("exclude_status", "draft");
     }
     if (page && page > 1) q.set("page", String(page));
     q.set("page_size", String(pageSize));

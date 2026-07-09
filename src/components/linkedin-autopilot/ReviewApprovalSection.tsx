@@ -1,7 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { LuPencil, LuRefreshCw, LuGlobe, LuCheck, LuLoader } from "react-icons/lu";
+import {
+  LuPencil,
+  LuRefreshCw,
+  LuImage,
+  LuGlobe,
+  LuCheck,
+  LuLoader,
+  LuSparkles,
+  LuX,
+} from "react-icons/lu";
 import toast from "react-hot-toast";
 import { postsService } from "@/service/postsService";
 import { linkedinService } from "@/service/linkedinService";
@@ -38,6 +47,8 @@ export default function ReviewApprovalSection() {
   const [rejectPost, setRejectPost] = useState<PostType | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [imagePromptPostId, setImagePromptPostId] = useState<string | null>(null);
+  const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({});
 
   // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
   // baseline = draft count at the moment generate was clicked (null = not polling)
@@ -135,9 +146,6 @@ export default function ReviewApprovalSection() {
             </span>
           )}
         </div>
-        <button className="text-sm font-medium text-blue-600 hover:underline">
-          View all drafts →
-        </button>
       </div>
 
       {/* Loading skeleton */}
@@ -223,16 +231,9 @@ export default function ReviewApprovalSection() {
                   </div>
                 )}
 
-                {/* CTA */}
-                {post.cta && (
-                  <div className="mb-4 border-t border-gray-100 pt-3">
-                    <span className="text-xs text-gray-400">CTA: {post.cta}</span>
-                  </div>
-                )}
-
                 {/* Action buttons */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setEditPost(post)}
                       className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50"
@@ -242,7 +243,16 @@ export default function ReviewApprovalSection() {
                     </button>
                     <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50">
                       <LuRefreshCw className="h-3.5 w-3.5" />
-                      Regenerate
+                      Regenerate Post
+                    </button>
+                    <button
+                      onClick={() =>
+                        setImagePromptPostId((prev) => (prev === post.id ? null : post.id))
+                      }
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+                    >
+                      <LuImage className="h-3.5 w-3.5" />
+                      Regenerate Image
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
@@ -251,7 +261,7 @@ export default function ReviewApprovalSection() {
                       disabled={isApproving}
                       className="rounded-lg border border-red-200 px-3.5 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40"
                     >
-                      Reject
+                      Delete
                     </button>
                     <button
                       onClick={() => handleApprove(post.id)}
@@ -263,6 +273,40 @@ export default function ReviewApprovalSection() {
                     </button>
                   </div>
                 </div>
+
+                {/* Image prompt panel */}
+                {imagePromptPostId === post.id && (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3.5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-700">Image prompt</span>
+                      <button
+                        onClick={() => setImagePromptPostId(null)}
+                        className="text-blue-300 transition-colors hover:text-blue-500"
+                      >
+                        <LuX className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={imagePrompts[post.id] ?? ""}
+                      onChange={(e) =>
+                        setImagePrompts((prev) => ({ ...prev, [post.id]: e.target.value }))
+                      }
+                      placeholder="Describe the image you want to generate… e.g. 'A minimalist office scene with warm lighting'"
+                      className="w-full resize-none rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        disabled
+                        className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white opacity-60"
+                        title="API coming soon"
+                      >
+                        <LuSparkles className="h-3.5 w-3.5" />
+                        Generate Image
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

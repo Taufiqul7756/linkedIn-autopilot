@@ -1,9 +1,10 @@
-import { get, post } from "@/lib/api";
+import { get, post, del } from "@/lib/api";
 import { PaginatedWebsites, WebsiteType } from "@/types/Website";
 
 export const websiteService = () => ({
   getWebsites: () => get<PaginatedWebsites>("/websites/"),
   addWebsite: (url: string) => post<WebsiteType>("/websites/", { url }),
+  deleteWebsite: (id: string) => del<void>(`/websites/${id}/`),
   recrawl: (id: string, url: string) =>
     post<{ status: string }>(`/websites/${id}/recrawl/`, { url }),
 });

@@ -19,13 +19,14 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 ### 1. Page Header
 - Title: "LinkedIn Autopilot" with LinkedIn icon
 - Subtitle: "Generate on-brand posts from your website, approve, schedule, and auto-publish."
-- Actions: Calendar (secondary), Generate Posts (primary)
+- No header action buttons
 
 ### 2. Account & Knowledge Base
 - **LinkedIn account card**: Shows connection status (Connected/Disconnected), authorized user, OAuth scope.
   - Action: **Manage** → opens LinkedInManageModal (current account info + "Connect your LinkedIn" button + disconnect link)
 - **Website knowledge base card**: Shows crawl status (Ready/Stale), domain, facet count.
-  - Action: **Add sources** → opens KnowledgeBaseUploadModal (file upload: PDF/DOC/DOCX + text textarea)
+  - Action: **Add sources** → opens AddUrlModal: add new URL + list existing indexed URLs with status dot + delete per URL (`DELETE /websites/{id}/`)
+  - Action: **Add to Knowledge Base** → opens KnowledgeBaseUploadModal: drag-and-drop PDF upload + list of uploaded docs with status + delete per doc (`DELETE /documents/{id}/`)
   - Action: **Re-crawl** → triggers re-index of website
 - **Stats grid** (2 rows × 4 cards, real API): Row 1 — Drafts · Approved · Scheduled · Published; Row 2 — Failed · Published This Week · Next Scheduled · Avg. Engagement
   - API: `GET /api/v1/content/posts/stats/`
@@ -49,15 +50,16 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
   - Author avatar (initials from LinkedIn account name), Draft badge
   - Post body text (whitespace-pre-line) + optional image
   - Hashtags (prefixed with `#`)
-  - CTA line only (read time and "Image prompt ready" removed)
   - **Edit** → EditPostModal
-  - **Regenerate** → (future)
-  - **Reject** → RejectConfirmModal → `DELETE /content/posts/{id}/`
+  - **Regenerate Post** → (future API)
+  - **Regenerate Image** → toggles an image prompt textarea panel below the card buttons; panel has a "Generate Image" button (disabled until API wired up)
+  - **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
   - **Approve** → `POST /content/posts/{id}/approve/`
+- No "View all drafts" link
 - APIs: `GET /content/posts/?status=draft`, `POST /approve/`, `DELETE`
 
 ### 5. Post Management
-- Excludes draft posts (drafts live in Review & Approval only)
+- Excludes draft posts server-side via `exclude_status=draft` query param (drafts live in Review & Approval only)
 - Table with checkbox selection + select-all (indeterminate state)
 - **Bulk delete** appears when ≥ 2 rows selected
 - **Page size selector** (2 / 5 / 10 / 15 / 20 per page, default 10) — passed as `page_size` to API
@@ -71,8 +73,8 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
   - Scheduled → **Reschedule** → ScheduleModal (reschedule mode, shows current) + ▶ play button
   - Failed → **Retry**
   - Published → **External link** icon (opens LinkedIn post)
-- Three-dot dropdown per row: **View** → ViewPostModal · **Delete** → `DELETE /content/posts/{id}/`
-- APIs: `GET /content/posts/?page_size=N&page=N&status=X`, `POST /schedule/`, `DELETE`
+- Three-dot dropdown per row: **View** → ViewPostModal · **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
+- APIs: `GET /content/posts/?page_size=N&page=N&status=X&exclude_status=draft`, `POST /schedule/`, `DELETE`
 
 ### 6. Autopilot Agent Workflow
 - Live status indicator
@@ -96,7 +98,7 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 | `KnowledgeBaseUploadModal` | Add sources button | Drag-and-drop file upload (PDF/DOC/DOCX), additional context textarea |
 | `ScheduleModal` | Schedule / Reschedule button | Post preview, date picker, time picker, timezone (read-only); `onConfirm(scheduledAt: string)` callback |
 | `EditPostModal` | Edit button | Post content textarea (char count), image section (view/remove/upload), hashtags input; image auto-uploads on select via `POST /upload_image/` |
-| `RejectConfirmModal` | Reject button | Warning icon, post excerpt, optional reason, Cancel + Reject |
+| `RejectConfirmModal` | Delete button (Review & Approval + Post Management three-dot) | Warning icon, post excerpt, Cancel + Delete post |
 | `ViewPostModal` | Three-dot → View | Fetches `GET /content/posts/{id}/`; shows status, tone/length/style chips, body, image, hashtags, CTA, dates, engagement |
 
 ---
@@ -123,9 +125,10 @@ Defined in `src/types/Post.ts`:
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
+| POST | `/auth/logout/` | Sign out (clears session + localStorage) |
 | GET | `/content/posts/stats/` | Stats grid |
 | GET | `/content/posts/?status=draft` | Draft posts list |
-| GET | `/content/posts/?status=X&page=N&page_size=N` | Post management table |
+| GET | `/content/posts/?exclude_status=draft&page=N&page_size=N` | Post management table (excludes drafts server-side) |
 | GET | `/content/posts/{id}/` | View single post |
 | POST | `/content/posts/generate/` | Generate posts |
 | POST | `/content/posts/suggest_prompts/` | Prompt suggestions |
@@ -133,14 +136,21 @@ Defined in `src/types/Post.ts`:
 | POST | `/content/posts/{id}/schedule/` | Schedule post |
 | POST | `/content/posts/{id}/upload_image/` | Upload post image (binary FormData, `image` field) |
 | PATCH | `/content/posts/{id}/` | Edit body / hashtags |
-| DELETE | `/content/posts/{id}/` | Reject / delete post |
+| DELETE | `/content/posts/{id}/` | Delete post |
+| GET | `/websites/` | List indexed websites |
+| POST | `/websites/` | Add website URL |
+| DELETE | `/websites/{id}/` | Remove website URL |
+| GET | `/documents/` | List uploaded documents |
+| POST | `/documents/` | Upload document (PDF) |
+| DELETE | `/documents/{id}/` | Delete document |
 
 ## Out of Scope (remaining)
 
 - Real-time agent status polling (WebSocket)
 - Calendar view
-- "View all drafts" full page
 - Bulk delete confirmation modal
 - Run Agent API call
+- Regenerate Post API
+- Regenerate Image API (`image_prompt` field)
 - Image removal via PATCH (backend to support `image_url: ""`)
 - Hashtag PATCH (backend fixing)

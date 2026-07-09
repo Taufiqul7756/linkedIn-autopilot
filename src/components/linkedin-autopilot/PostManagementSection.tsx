@@ -23,6 +23,7 @@ import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType, PostEngagement } from "@/types/Post";
 import ScheduleModal from "./ScheduleModal";
 import ViewPostModal from "./ViewPostModal";
+import RejectConfirmModal from "./RejectConfirmModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDate(iso: string | null | undefined): string {
@@ -307,6 +308,8 @@ export default function PostManagementSection() {
   const [viewPostId, setViewPostId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PostType | null>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const { data: postsData, isLoading } = useQueryWithTokenRefresh(
     ["posts", "all", activeFilter, page, pageSize],
@@ -314,7 +317,7 @@ export default function PostManagementSection() {
       postsService().getAllPosts(activeFilter === "all" ? undefined : activeFilter, page, pageSize)
   );
 
-  const posts = (postsData?.results ?? []).filter((p) => p.status !== "draft");
+  const posts = postsData?.results ?? [];
   const totalCount = postsData?.count ?? 0;
   const hasNext = !!postsData?.next;
   const hasPrev = !!postsData?.previous;
@@ -380,12 +383,24 @@ export default function PostManagementSection() {
   };
 
   // Delete post(s)
-  const handleDeletePost = async (id: string) => {
-    await postsService().rejectPost(id);
-    queryClient.invalidateQueries({ queryKey: ["posts", "all"] });
-    queryClient.invalidateQueries({ queryKey: ["post-stats"] });
-    queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
-    toast.success("Post deleted.");
+  const handleDeletePost = (id: string) => {
+    const post = posts.find((p) => p.id === id) ?? null;
+    setDeleteTarget(post);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsConfirmingDelete(true);
+    try {
+      await postsService().rejectPost(deleteTarget.id);
+      queryClient.invalidateQueries({ queryKey: ["posts", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["post-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+      toast.success("Post deleted.");
+      setDeleteTarget(null);
+    } finally {
+      setIsConfirmingDelete(false);
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -658,6 +673,15 @@ export default function PostManagementSection() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      <RejectConfirmModal
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        postExcerpt={deleteTarget?.body.split("\n")[0] ?? ""}
+        onConfirm={handleConfirmDelete}
+        isConfirming={isConfirmingDelete}
+      />
 
       {/* View post modal */}
       <ViewPostModal

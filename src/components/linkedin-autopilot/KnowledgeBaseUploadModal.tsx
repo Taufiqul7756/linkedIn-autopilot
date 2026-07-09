@@ -1,13 +1,23 @@
 "use client";
 import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LuUpload, LuFileText, LuX, LuCircleCheck, LuCircleAlert, LuLoader } from "react-icons/lu";
+import {
+  LuUpload,
+  LuFileText,
+  LuX,
+  LuCircleCheck,
+  LuCircleAlert,
+  LuLoader,
+  LuTrash2,
+} from "react-icons/lu";
 import toast from "react-hot-toast";
 import Modal from "@/components/ui/Modal";
 import { documentService } from "@/service/documentService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
+import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
 import { DocumentType } from "@/types/Document";
 import { cn } from "@/utils/cn";
+import { extractErrorMessage } from "@/utils/extractErrorMessage";
 
 interface KnowledgeBaseUploadModalProps {
   isOpen: boolean;
@@ -37,6 +47,19 @@ export default function KnowledgeBaseUploadModal({
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const deleteDocument = useMutationWithTokenRefresh(
+    (id: string) => documentService().deleteDocument(id),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["documents"] });
+        toast.success("Document deleted.");
+      },
+      onError: (error: unknown) => {
+        toast.error(extractErrorMessage(error) || "Failed to delete document.");
+      },
+    }
+  );
 
   const { data: docsData, isLoading: docsLoading } = useQueryWithTokenRefresh(
     ["documents"],
@@ -220,6 +243,14 @@ export default function KnowledgeBaseUploadModal({
                 >
                   {docStatusLabel(doc.status)}
                 </span>
+                <button
+                  onClick={() => deleteDocument.mutate(doc.id)}
+                  disabled={deleteDocument.isPending}
+                  className="ml-1 shrink-0 text-gray-300 transition-colors hover:text-red-400 disabled:opacity-40"
+                  title="Delete document"
+                >
+                  <LuTrash2 className="h-3.5 w-3.5" />
+                </button>
               </li>
             ))}
           </ul>

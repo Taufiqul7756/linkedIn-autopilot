@@ -40,7 +40,7 @@ Claude reads this file every session. Use these exact terms consistently.
 - The Autopilot runs 7 agents: Connector, Knowledge, Generator, Review Gate, Scheduler, Publisher, Analytics
 - Bulk delete requires selecting at least 2 posts
 - Run Agent is available when at least 1 post is selected
-- Rejecting a post removes it from the approval queue (requires confirmation)
+- Deleting a post permanently removes it; always requires confirmation via DeleteConfirmModal (used in both Review & Approval and Post Management)
 
 ## Status Flows
 

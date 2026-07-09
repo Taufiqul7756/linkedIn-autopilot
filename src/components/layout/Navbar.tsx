@@ -1,11 +1,12 @@
 "use client";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { RiBellLine } from "react-icons/ri";
-import { LuSun } from "react-icons/lu";
+import { useRouter, usePathname } from "next/navigation";
+import { LuLogOut } from "react-icons/lu";
 import { FaLinkedinIn } from "react-icons/fa";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/context/AuthContext";
+import { authService } from "@/service/authService";
 
 const navLinks = [
   { label: "Leads", href: "/leads" },
@@ -16,7 +17,20 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
 
   if (pathname === "/login") return null;
 
@@ -25,6 +39,18 @@ export default function Navbar() {
     : user?.email
       ? user.email.slice(0, 2).toUpperCase()
       : "?";
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await authService().logout();
+    } catch {
+      // proceed regardless
+    } finally {
+      logout();
+      router.push("/login");
+    }
+  };
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-gray-200 bg-white px-4 md:gap-8 md:px-6">
@@ -64,17 +90,40 @@ export default function Navbar() {
           <span className="hidden sm:inline">LinkedIn Autopilot</span>
         </Link>
 
-        <button className="hidden items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 sm:flex">
-          <LuSun className="h-4 w-4" />
-          Light
-        </button>
+        {/* Avatar + logout dropdown */}
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-8 w-8 select-none items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-200"
+          >
+            {initials}
+          </button>
 
-        <button className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100">
-          <RiBellLine className="h-5 w-5" />
-        </button>
-
-        <div className="flex h-8 w-8 select-none items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
-          {initials}
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              {(user?.username || user?.email) && (
+                <>
+                  <div className="px-4 py-2.5">
+                    <p className="truncate text-xs font-semibold text-gray-800">
+                      {user.username || user.email}
+                    </p>
+                    {user.username && (
+                      <p className="truncate text-xs text-gray-400">{user.email}</p>
+                    )}
+                  </div>
+                  <div className="mx-3 border-t border-gray-100" />
+                </>
+              )}
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+              >
+                <LuLogOut className="h-4 w-4" />
+                {loggingOut ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

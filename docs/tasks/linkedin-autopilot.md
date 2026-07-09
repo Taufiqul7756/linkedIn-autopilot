@@ -29,15 +29,15 @@
 ### Navbar
 - [x] Logo + nav links (Leads, Campaigns, Inbox, Analytics)
 - [x] LinkedIn Autopilot CTA button (active state on `/linkedin-autopilot`)
-- [x] Light toggle, bell icon, user avatar
+- [x] User avatar with logout dropdown (POST `/auth/logout/`, clears localStorage, redirects to `/login`)
 
 ### Page Header
 - [x] LinkedIn icon + title + subtitle
-- [x] Calendar + Generate Posts action buttons
+- [x] No header action buttons (Calendar + Generate Posts removed)
 
 ### Account & Knowledge Base Section
 - [x] LinkedIn account card (Connected status, Manage button → LinkedInManageModal)
-- [x] Website knowledge base card (Ready status, Add Sources button → KnowledgeBaseUploadModal, Re-crawl button)
+- [x] Website knowledge base card (Ready status, Add Sources → AddUrlModal with existing URLs list + delete, Add to Knowledge Base → KnowledgeBaseUploadModal with docs list + delete, Re-crawl button)
 - [x] 5 stats cards row (Awaiting · Approved · Scheduled · Published · Avg Engagement) — replaced with real API (see Phase 5)
 
 ### Generate Posts Section
@@ -51,19 +51,19 @@
 - [x] Gradient background (blue-gray → white, top to bottom)
 
 ### Review & Approval Section
-- [x] Section header with awaiting badge + "View all drafts" link
+- [x] Section header with awaiting badge
 - [x] Two-column draft post cards
-- [x] Author info, Draft badge, post body, image, hashtags
-- [x] CTA only in card footer (read time + image prompt removed)
+- [x] Author info, Draft badge, post body, image, hashtags (no CTA)
 - [x] Post-generate polling: spins every 5s, stops when posts arrive
 - [x] Edit button → EditPostModal (content + image upload + hashtags)
-- [x] Regenerate button (UI only, future)
-- [x] Reject button → RejectConfirmModal → DELETE API
+- [x] Regenerate Post button (UI only, future API)
+- [x] Regenerate Image button → toggles image prompt textarea panel with Generate Image button (disabled, future API)
+- [x] Delete button → RejectConfirmModal → DELETE API
 - [x] Approve button → POST approve API
 
 ### Post Management Section
 - [x] Filter dropdown: All / Approved / Scheduled / Published / Failed (no Draft)
-- [x] Drafts excluded from table (belong in Review & Approval)
+- [x] Drafts excluded server-side via `exclude_status=draft` param (belong in Review & Approval)
 - [x] Page size selector (2 / 5 / 10 / 15 / 20), default 10 — passed as `page_size` to API
 - [x] Pagination bar always visible (Previous / Next, page info)
 - [x] Checkbox column with select-all (indeterminate state)
@@ -74,7 +74,7 @@
 - [x] Schedule → ScheduleModal → POST /schedule/ API
 - [x] Reschedule → ScheduleModal (reschedule mode) → POST /schedule/ API
 - [x] Retry / External link buttons for Failed / Published rows
-- [x] Three-dot dropdown: View → ViewPostModal · Delete → DELETE API
+- [x] Three-dot dropdown: View → ViewPostModal · Delete → RejectConfirmModal → DELETE API
 
 ### Autopilot Agent Workflow Section
 - [x] Section header with Live badge
@@ -88,7 +88,7 @@
 - [x] `KnowledgeBaseUploadModal` — drag-and-drop file upload (PDF/DOC/DOCX) + text textarea
 - [x] `ScheduleModal` — date + time + timezone; `onConfirm(scheduledAt: string)` + `isLoading` props
 - [x] `EditPostModal` — content textarea (char count) + image (view/remove/auto-upload on select) + hashtags
-- [x] `RejectConfirmModal` — warning + post excerpt + Cancel + Reject
+- [x] `RejectConfirmModal` — warning + post excerpt + Cancel + Delete post (used in Review & Approval and Post Management)
 - [x] `ViewPostModal` — full post detail fetched from API; status/tone/style chips, body, image, hashtags, CTA, dates, engagement
 
 ## Phase 4 — Polish
@@ -117,9 +117,15 @@
 - [x] View single post — `GET /content/posts/{id}/`
 - [x] Upload post image — `POST /content/posts/{id}/upload_image/` (FormData, `image` field, auto-triggers on file select)
 - [x] Edit post body/hashtags — `PATCH /content/posts/{id}/`
+- [x] Logout — `POST /auth/logout/` + clear localStorage + redirect to `/login`
+- [x] Website URLs list + delete — `GET /websites/`, `DELETE /websites/{id}/`
+- [x] Documents list + delete — `GET /documents/`, `DELETE /documents/{id}/`
+- [x] Post management draft exclusion — `exclude_status=draft` query param
+- [x] Delete confirmation modal on Post Management row delete
 - [ ] Website crawler + knowledge base API
 - [ ] Real-time agent status polling
 - [ ] Calendar view page
-- [ ] "View all drafts" page
 - [ ] Bulk delete confirmation modal
 - [ ] Run Agent API call
+- [ ] Regenerate Post API
+- [ ] Regenerate Image API

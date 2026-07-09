@@ -1,4 +1,4 @@
-import { get, post } from "@/lib/api";
+import { get, post, del } from "@/lib/api";
 import { DocumentType, PaginatedDocuments } from "@/types/Document";
 
 export const documentService = () => ({
@@ -8,4 +8,5 @@ export const documentService = () => ({
     formData.append("file", file);
     return post<DocumentType>("/documents/", formData);
   },
+  deleteDocument: (id: string) => del<void>(`/documents/${id}/`),
 });
