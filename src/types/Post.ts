@@ -51,6 +51,7 @@ export type GeneratePostsBody = {
   tone: string;
   length: string;
   content_style: string;
+  use_emoji: boolean;
   count: number;
 };
 

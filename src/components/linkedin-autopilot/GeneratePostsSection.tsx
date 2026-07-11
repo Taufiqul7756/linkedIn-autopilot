@@ -11,7 +11,6 @@ import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 
-const POST_COUNTS = [3, 5, 10];
 const TONE_OPTIONS = [
   { value: "professional", label: "Professional" },
   { value: "conversational", label: "Conversational" },
@@ -32,8 +31,10 @@ type Length = (typeof LENGTH_OPTIONS)[number];
 
 export default function GeneratePostsSection() {
   const queryClient = useQueryClient();
-  const [postCount, setPostCount] = useState(5);
+  const [postCount, setPostCount] = useState<number | "">("");
+  const [postCountError, setPostCountError] = useState("");
   const [tone, setTone] = useState("professional");
+  const [useEmoji, setUseEmoji] = useState(false);
   const [length, setLength] = useState<Length>("Medium");
   const [contentStyle, setContentStyle] = useState("Thought leadership");
   const [prompt, setPrompt] = useState("");
@@ -75,7 +76,8 @@ export default function GeneratePostsSection() {
         tone,
         length: length.toLowerCase(),
         content_style: contentStyle.toLowerCase().replace(/\s+/g, "_"),
-        count: postCount,
+        use_emoji: useEmoji,
+        count: postCount as number,
       }),
     {
       onSuccess: () => {
@@ -101,6 +103,11 @@ export default function GeneratePostsSection() {
 
   const handleGenerate = () => {
     if (!website) return;
+    if (postCount === "" || postCount < 1) {
+      setPostCountError("Enter how many posts to generate.");
+      return;
+    }
+    setPostCountError("");
     generateMutation.mutate(website.id);
   };
 
@@ -117,28 +124,31 @@ export default function GeneratePostsSection() {
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5 lg:gap-5">
         {/* Number of posts */}
         <div>
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Number of posts
+            Number of posts <span className="text-red-400">*</span>
           </label>
-          <div className="flex gap-1.5">
-            {POST_COUNTS.map((n) => (
-              <button
-                key={n}
-                onClick={() => setPostCount(n)}
-                className={cn(
-                  "flex h-9 w-full items-center justify-center rounded-lg border text-sm font-medium transition-colors",
-                  postCount === n
-                    ? "border-blue-600 bg-blue-600 text-white"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                )}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={postCount}
+            onChange={(e) => {
+              const val = e.target.value === "" ? "" : Number(e.target.value);
+              setPostCount(val);
+              if (val !== "" && (val as number) >= 1) setPostCountError("");
+            }}
+            placeholder="e.g. 5"
+            className={cn(
+              "h-9 w-full rounded-lg border bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-1",
+              postCountError
+                ? "border-red-400 focus:border-red-400 focus:ring-red-400"
+                : "border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+            )}
+          />
+          {postCountError && <p className="mt-1 text-xs text-red-500">{postCountError}</p>}
         </div>
 
         {/* Tone */}
@@ -157,6 +167,32 @@ export default function GeneratePostsSection() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Use Emoji */}
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Use Emoji
+          </label>
+          <div className="flex gap-1.5">
+            {(["No", "Yes"] as const).map((opt) => {
+              const active = opt === "Yes" ? useEmoji : !useEmoji;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => setUseEmoji(opt === "Yes")}
+                  className={cn(
+                    "flex h-9 w-full items-center justify-center rounded-lg border text-sm font-medium transition-colors",
+                    active
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                  )}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Length */}
@@ -252,7 +288,7 @@ export default function GeneratePostsSection() {
           </p>
           <button
             onClick={handleGenerate}
-            disabled={!canAct || generateMutation.isPending}
+            disabled={!canAct || generateMutation.isPending || postCount === ""}
             className="flex items-center gap-2 self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:self-auto"
           >
             <LuArrowRight className="h-4 w-4" />
