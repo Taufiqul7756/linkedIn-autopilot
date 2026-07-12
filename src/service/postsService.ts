@@ -1,10 +1,11 @@
-import { get, post, patch, del } from "@/lib/api";
+import { get, post, postRaw, patch, del } from "@/lib/api";
 import {
   PostStatsType,
   PostType,
   PaginatedPosts,
   GeneratePostsBody,
   GeneratePostsResponse,
+  RegeneratePostBody,
   SuggestPromptsBody,
   SuggestPromptsResponse,
 } from "@/types/Post";
@@ -39,8 +40,10 @@ export const postsService = () => ({
   rejectPost: (id: string) => del<void>(`/content/posts/${id}/`),
   generateImage: (id: string, image_prompt: string) =>
     post<PostType>(`/content/posts/${id}/generate_image/`, { image_prompt }),
+  regeneratePost: (id: string, body: RegeneratePostBody) =>
+    post<PostType>(`/content/posts/${id}/regenerate/`, body),
   generatePosts: (body: GeneratePostsBody) =>
-    post<GeneratePostsResponse>("/content/posts/generate/", body),
+    postRaw<GeneratePostsResponse>("/content/posts/generate/", body),
   suggestPrompts: (body: SuggestPromptsBody) =>
     post<SuggestPromptsResponse>("/content/posts/suggest_prompts/", body),
 });

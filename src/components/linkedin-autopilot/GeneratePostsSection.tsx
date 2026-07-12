@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { LuSparkles, LuArrowRight } from "react-icons/lu";
+import { LuSparkles, LuArrowRight, LuX, LuTriangleAlert } from "react-icons/lu";
+import { AxiosError } from "axios";
 import toast from "react-hot-toast";
 import { cn } from "@/utils/cn";
 import { postsService } from "@/service/postsService";
@@ -39,6 +40,10 @@ export default function GeneratePostsSection() {
   const [contentStyle, setContentStyle] = useState("Thought leadership");
   const [prompt, setPrompt] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [promptError, setPromptError] = useState<{
+    prompt: string;
+    suggested_topics: string[];
+  } | null>(null);
 
   const { data: websites } = useQueryWithTokenRefresh(["websites"], () =>
     websiteService().getWebsites()
@@ -84,12 +89,23 @@ export default function GeneratePostsSection() {
         toast.success("Posts are being generated. Check drafts shortly.");
         setPrompt("");
         setSuggestions([]);
+        setPromptError(null);
         // Store current draft count as baseline — poll until count exceeds it
         const currentDrafts = queryClient.getQueryData<{ results?: unknown[] }>(["posts", "draft"]);
         queryClient.setQueryData(["posts-generating"], currentDrafts?.results?.length ?? 0);
         queryClient.invalidateQueries({ queryKey: ["post-stats"] });
       },
       onError: (error: unknown) => {
+        if (error instanceof AxiosError) {
+          const data = error.response?.data as Record<string, unknown> | undefined;
+          if (data?.suggested_topics && Array.isArray(data.suggested_topics)) {
+            setPromptError({
+              prompt: typeof data.prompt === "string" ? data.prompt : "Prompt not covered.",
+              suggested_topics: data.suggested_topics as string[],
+            });
+            return;
+          }
+        }
         toast.error(extractErrorMessage(error));
       },
     }
@@ -253,6 +269,40 @@ export default function GeneratePostsSection() {
           className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
+
+      {/* Prompt not covered error */}
+      {promptError && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <LuTriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <p className="text-sm text-amber-800">{promptError.prompt}</p>
+            </div>
+            <button
+              onClick={() => setPromptError(null)}
+              className="shrink-0 text-amber-400 transition-colors hover:text-amber-600"
+            >
+              <LuX className="h-4 w-4" />
+            </button>
+          </div>
+          {promptError.suggested_topics.length > 0 && (
+            <div className="ml-6 flex flex-wrap gap-2">
+              {promptError.suggested_topics.map((topic) => (
+                <button
+                  key={topic}
+                  onClick={() => {
+                    setPrompt(topic);
+                    setPromptError(null);
+                  }}
+                  className="rounded-lg border border-amber-200 bg-white px-3 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                >
+                  {topic}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Suggestions */}
       {suggestions.length > 0 && (

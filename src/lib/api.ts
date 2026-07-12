@@ -80,6 +80,12 @@ export async function post<T>(url: string, data?: unknown): Promise<T | undefine
   }
 }
 
+/** Like `post` but re-throws on error — use when onError handling is needed. */
+export async function postRaw<T>(url: string, data?: unknown): Promise<T> {
+  const response = await api.post<T>(url, data);
+  return response.data;
+}
+
 export async function patch<T>(url: string, data?: unknown): Promise<T | undefined> {
   try {
     const response = await api.patch<T>(url, data);

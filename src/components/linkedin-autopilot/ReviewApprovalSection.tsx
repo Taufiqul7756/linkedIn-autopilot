@@ -20,7 +20,9 @@ import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType } from "@/types/Post";
 import EditPostModal from "./EditPostModal";
 import RejectConfirmModal from "./RejectConfirmModal";
-import RegeneratePostConfirmModal from "./RegeneratePostConfirmModal";
+import RegeneratePostConfirmModal, {
+  type RegeneratePostOptions,
+} from "./RegeneratePostConfirmModal";
 
 function parseHashtags(raw: unknown): string[] {
   if (!raw) return [];
@@ -129,6 +131,7 @@ export default function ReviewApprovalSection() {
   const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({});
   const [regenerateTarget, setRegenerateTarget] = useState<PostType | null>(null);
   const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
   // baseline = draft count at the moment generate was clicked (null = not polling)
@@ -199,6 +202,23 @@ export default function ReviewApprovalSection() {
       onError: (error: unknown) => {
         toast.error(extractErrorMessage(error));
         setRejectingId(null);
+      },
+    }
+  );
+
+  const regeneratePostMutation = useMutationWithTokenRefresh(
+    ({ id, opts }: { id: string; opts: RegeneratePostOptions }) =>
+      postsService().regeneratePost(id, opts),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+        toast.success("Post regenerated!");
+        setRegeneratingId(null);
+        setRegenerateTarget(null);
+      },
+      onError: (error: unknown) => {
+        toast.error(extractErrorMessage(error) || "Failed to regenerate post.");
+        setRegeneratingId(null);
       },
     }
   );
@@ -387,10 +407,17 @@ export default function ReviewApprovalSection() {
       <RegeneratePostConfirmModal
         key={regenerateTarget?.id ?? "no-regenerate"}
         isOpen={regenerateTarget !== null}
-        onClose={() => setRegenerateTarget(null)}
-        postExcerpt={regenerateTarget?.body.split("\n")[0] ?? ""}
-        onConfirm={() => {
-          // TODO: wire up regenerate API
+        onClose={() => {
+          if (!regeneratingId) setRegenerateTarget(null);
+        }}
+        defaultTone={regenerateTarget?.tone}
+        defaultLength={regenerateTarget?.length}
+        defaultContentStyle={regenerateTarget?.content_style}
+        isConfirming={regeneratingId === regenerateTarget?.id}
+        onConfirm={(opts) => {
+          if (!regenerateTarget) return;
+          setRegeneratingId(regenerateTarget.id);
+          regeneratePostMutation.mutate({ id: regenerateTarget.id, opts });
         }}
       />
 

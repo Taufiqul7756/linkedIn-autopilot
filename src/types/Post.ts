@@ -59,6 +59,14 @@ export type GeneratePostsResponse = {
   status: string;
 };
 
+export type RegeneratePostBody = {
+  instruction: string;
+  tone: string;
+  length: string;
+  content_style: string;
+  use_emoji: boolean;
+};
+
 export type SuggestPromptsBody = {
   website_profile: string;
 };
