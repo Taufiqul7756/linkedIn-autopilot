@@ -29,6 +29,8 @@ export type PostType = {
   cta: string;
   image_query: string;
   image_url: string;
+  image_file: null | string;
+  image_status: string;
   status: "draft" | "approved" | "scheduled" | "published" | "failed";
   scheduled_at: string | null;
   published_at: string | null;

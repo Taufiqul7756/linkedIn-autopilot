@@ -134,7 +134,7 @@ export default function ReviewApprovalSection() {
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
-  // baseline = draft count at the moment generate was clicked (null = not polling)
+  // truthy = polling active; null = not polling
   const { data: baseline } = useQuery<number | null>({
     queryKey: ["posts-generating"],
     queryFn: () => null,
@@ -149,29 +149,33 @@ export default function ReviewApprovalSection() {
     {
       refetchInterval: isPolling
         ? (query) => {
-            const count =
-              (query.state.data as { results?: unknown[] } | undefined)?.results?.length ?? 0;
-            return count > (baseline ?? 0) ? false : 5000;
+            const results =
+              (query.state.data as { results?: PostType[] } | undefined)?.results ?? [];
+            const allImagesReady =
+              results.length > 0 && results.every((p) => p.image_status !== "pending");
+            return allImagesReady ? false : 5000;
           }
         : false,
     }
   );
 
-  const isGenerating = isPolling && (postsData?.results?.length ?? 0) <= (baseline ?? 0);
+  const posts = postsData?.results ?? [];
+  const isGenerating =
+    isPolling && (posts.length === 0 || posts.some((p) => p.image_status === "pending"));
 
-  // Clear polling flag once new posts have arrived beyond the baseline
+  // Clear polling flag once all posts have their images ready
   useEffect(() => {
-    if (isPolling && (postsData?.results?.length ?? 0) > (baseline ?? 0)) {
+    const results = postsData?.results ?? [];
+    if (isPolling && results.length > 0 && results.every((p) => p.image_status !== "pending")) {
       queryClient.setQueryData(["posts-generating"], null);
     }
-  }, [postsData, isPolling, baseline, queryClient]);
+  }, [postsData, isPolling, queryClient]);
 
   const { data: account } = useQueryWithTokenRefresh(["linkedin-account"], () =>
     linkedinService().getAccount()
   );
 
   const accountName = account?.name ?? "LinkedIn User";
-  const posts = postsData?.results ?? [];
 
   const approveMutation = useMutationWithTokenRefresh(
     (id: string) => postsService().approvePost(id),
@@ -332,7 +336,14 @@ export default function ReviewApprovalSection() {
                 </div>
 
                 {/* Image */}
-                {post.image_url && (
+                {post.image_status === "pending" ? (
+                  <div className="mb-3 flex h-40 w-full items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50">
+                    <div className="flex flex-col items-center gap-2">
+                      <LuLoader className="h-5 w-5 animate-spin text-blue-400" />
+                      <span className="text-xs text-blue-400">Generating image…</span>
+                    </div>
+                  </div>
+                ) : post.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={post.image_url}
@@ -340,7 +351,7 @@ export default function ReviewApprovalSection() {
                     className="mb-3 w-full rounded-lg object-cover"
                     style={{ maxHeight: 220 }}
                   />
-                )}
+                ) : null}
 
                 {/* Hashtags */}
                 {hashtags.length > 0 && (

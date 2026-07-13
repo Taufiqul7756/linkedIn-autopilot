@@ -20,6 +20,7 @@
 - [x] `src/utils/extractErrorMessage.ts` — handles `AxiosError` (Django `detail`, `message`, `non_field_errors`)
 - [x] `.env.local` — `NEXT_PUBLIC_API_URL=https://relayapi.azurewebsites.net/api/v1`
 - [x] Fixed CORS: removed `withCredentials` from `authApi` (server returns wildcard `Access-Control-Allow-Origin`)
+- [x] Fixed SSR hydration mismatch: `AuthContext` now initialises `token` as `null` and reads `localStorage` in `useEffect`; `AuthGuard` renders children before mount so server + client first render match
 
 ## Phase 2 — Future
 

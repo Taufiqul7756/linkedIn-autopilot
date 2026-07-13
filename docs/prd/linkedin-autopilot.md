@@ -35,24 +35,28 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
   - `avg_engagement` displayed as percentage with 1 decimal
 
 ### 3. Generate Posts from Knowledge Base
-- Controls: Number of posts (3/5/10), Tone (dropdown), Length (Short/Medium/Long), Content Style (dropdown)
+- Controls: Number of posts (free-form input), Tone (dropdown), Length (Short/Medium/Long), Content Style (dropdown), Use Emoji (Yes/No toggle)
 - Optional custom prompt textarea with placeholder
 - "Suggest prompts" button → `POST /content/posts/suggest_prompts/` with `website_profile` UUID → shows clickable suggestion chips; clicking a chip fills the prompt textarea
 - Footer note: posts stay as drafts until approved
-- Primary action: Generate → `POST /content/posts/generate/` with `{ website_profile, documents, prompt, tone, length, content_style, count }`; both buttons disabled if no website connected
+- Primary action: Generate → `POST /content/posts/generate/` with `{ website_profile, documents, prompt, tone, length, content_style, use_emoji, count }`; both buttons disabled if no website connected
+- Generate is now **synchronous**: posts are created immediately (no queue); images are generated async in the background (`image_status: "pending"`)
+- On success: immediately invalidates `["posts","draft"]` so cards appear; sets `["posts-generating"]` flag to trigger image polling
+- If prompt is not covered by KB, API returns `{ prompt, suggested_topics[] }` → shown as amber warning banner with clickable topic chips
 - Card has a gradient background: blue-gray (`#ECEEF8`) → white (top to bottom)
 
 ### 4. Review & Approval
 - Shows drafts awaiting review (badge count)
-- Polls every 5s after Generate fires (via `["posts-generating"]` React Query cache flag); stops when posts arrive
-- Generating spinner shown while polling and no posts yet
+- Polls every 5s after Generate fires (via `["posts-generating"]` React Query cache flag); stops when **all** draft posts have `image_status !== "pending"`
+- Section-level generating spinner shown while polling and no posts yet (or all posts still pending images)
 - Two-column card grid, each card showing:
   - Author avatar (initials from LinkedIn account name), Draft badge
-  - Post body text (whitespace-pre-line) + optional image
+  - Post body text (whitespace-pre-line)
+  - **Image area**: if `image_status === "pending"` → blue dashed placeholder with spinner ("Generating image…"); if `image_url` present → renders image; otherwise nothing
   - Hashtags (prefixed with `#`)
   - **Edit** → EditPostModal
-  - **Regenerate Post** → RegeneratePostConfirmModal ("your current version will be lost") → (future API)
-  - **Regenerate Image** → toggles an image prompt textarea panel below the card buttons; "Generate Image" button enabled when prompt is non-empty → `POST /content/posts/{id}/generate_image/`; on success re-fetches draft list so card auto-updates with new `image_url`
+  - **Regenerate Post** → RegeneratePostConfirmModal ("your current version will be lost")
+  - **Regenerate Image** → floating prompt textarea dropdown; "Generate Image" button enabled when prompt non-empty → `POST /content/posts/{id}/generate_image/`; on success re-fetches draft list so card auto-updates
   - **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
   - **Approve** → `POST /content/posts/{id}/approve/`
 - No "View all drafts" link
@@ -110,7 +114,7 @@ Defined in `src/types/Post.ts`:
 
 | Type | Key Fields |
 | --- | --- |
-| `PostType` | id, body, hashtags (string[]), cta, image_url, image_query, tone, length, content_style, status, scheduled_at, published_at, linkedin_urn, engagement (PostEngagement\|null), created_at |
+| `PostType` | id, body, hashtags (string[]), cta, image_url, image_file, image_query, image_status (`"pending"` while async generation in progress), tone, length, content_style, use_emoji, status, scheduled_at, published_at, linkedin_urn, engagement (PostEngagement\|null), created_at |
 | `PostEngagement` | impressions, likes, comments, rate, synced_at |
 | `PostStatsType` | drafts, approved, scheduled, published, failed, published_this_week, next_scheduled_at, avg_engagement (all nullable) |
 | `PaginatedPosts` | count, next, previous, results: PostType[] |

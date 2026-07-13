@@ -41,7 +41,7 @@
 - [x] 5 stats cards row (Awaiting · Approved · Scheduled · Published · Avg Engagement) — replaced with real API (see Phase 5)
 
 ### Generate Posts Section
-- [x] Number of posts toggle (3 / 5 / 10)
+- [x] Number of posts free-form input (min 1, max 50) + Use Emoji toggle (Yes/No)
 - [x] Tone dropdown
 - [x] Length toggle (Short / Medium / Long)
 - [x] Content style dropdown
@@ -108,8 +108,9 @@
 - [x] LinkedIn OAuth connect flow
 - [x] Post stats grid — `GET /content/posts/stats/`
 - [x] Suggest prompts — `POST /content/posts/suggest_prompts/`
-- [x] Generate posts — `POST /content/posts/generate/` (async, returns `{status:"queued"}`)
-- [x] Post-generate polling via `["posts-generating"]` React Query cache flag
+- [x] Generate posts — `POST /content/posts/generate/` (synchronous; posts created immediately, images generated async via `image_status: "pending"`)
+- [x] Post-generate polling via `["posts-generating"]` React Query cache flag — polls every 5s until all drafts have `image_status !== "pending"`
+- [x] Image generation spinner in draft cards — blue dashed placeholder shown while `image_status === "pending"`
 - [x] Draft posts list — `GET /content/posts/?status=draft`
 - [x] Approve post — `POST /content/posts/{id}/approve/`
 - [x] Reject / delete post — `DELETE /content/posts/{id}/`

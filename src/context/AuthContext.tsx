@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { AuthUser, LoginResponse } from "@/types/Auth";
 
 const AUTH_KEY = "auth";
@@ -14,7 +14,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 function readAuthFromStorage(): { token: string | null; user: AuthUser | null } {
-  if (typeof window === "undefined") return { token: null, user: null };
   const stored = localStorage.getItem(AUTH_KEY);
   if (!stored) return { token: null, user: null };
   try {
@@ -27,9 +26,17 @@ function readAuthFromStorage(): { token: string | null; user: AuthUser | null } 
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [{ token, user }, setAuth] = useState<{ token: string | null; user: AuthUser | null }>(
-    readAuthFromStorage
-  );
+  // Always start with null so server and client first render match (no hydration mismatch).
+  // localStorage is read in useEffect after hydration.
+  const [{ token, user }, setAuth] = useState<{ token: string | null; user: AuthUser | null }>({
+    token: null,
+    user: null,
+  });
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAuth(readAuthFromStorage());
+  }, []);
 
   const login = (data: LoginResponse) => {
     localStorage.setItem(AUTH_KEY, JSON.stringify(data));

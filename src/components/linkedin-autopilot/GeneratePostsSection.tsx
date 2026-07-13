@@ -86,13 +86,13 @@ export default function GeneratePostsSection() {
       }),
     {
       onSuccess: () => {
-        toast.success("Posts are being generated. Check drafts shortly.");
+        toast.success("Posts created — generating images in the background.");
         setPrompt("");
         setSuggestions([]);
         setPromptError(null);
-        // Store current draft count as baseline — poll until count exceeds it
-        const currentDrafts = queryClient.getQueryData<{ results?: unknown[] }>(["posts", "draft"]);
-        queryClient.setQueryData(["posts-generating"], currentDrafts?.results?.length ?? 0);
+        // Immediately fetch the newly created posts, then poll until images are ready
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+        queryClient.setQueryData(["posts-generating"], Date.now());
         queryClient.invalidateQueries({ queryKey: ["post-stats"] });
       },
       onError: (error: unknown) => {
