@@ -31,6 +31,7 @@ export type PostType = {
   image_url: string;
   image_file: null | string;
   image_status: string;
+  scope: "corporate" | "personal";
   status: "draft" | "approved" | "scheduled" | "published" | "failed";
   scheduled_at: string | null;
   published_at: string | null;
@@ -55,6 +56,7 @@ export type GeneratePostsBody = {
   content_style: string;
   use_emoji: boolean;
   count: number;
+  scope: "corporate" | "personal";
 };
 
 export type GeneratePostsResponse = {

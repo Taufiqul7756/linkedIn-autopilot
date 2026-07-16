@@ -24,6 +24,13 @@ interface KnowledgeBaseUploadModalProps {
   onClose: () => void;
 }
 
+const SCOPE_OPTIONS = [
+  { value: "corporate", label: "Corporate" },
+  { value: "personal", label: "Personal" },
+] as const;
+
+type Scope = (typeof SCOPE_OPTIONS)[number]["value"];
+
 function DocStatusIcon({ status }: { status: DocumentType["status"] }) {
   if (status === "ready") return <LuCircleCheck className="h-4 w-4 shrink-0 text-green-500" />;
   if (status === "error") return <LuCircleAlert className="h-4 w-4 shrink-0 text-red-400" />;
@@ -45,6 +52,7 @@ export default function KnowledgeBaseUploadModal({
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [scope, setScope] = useState<Scope>("corporate");
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -99,7 +107,9 @@ export default function KnowledgeBaseUploadModal({
     if (files.length === 0) return;
     setIsUploading(true);
     try {
-      const results = await Promise.all(files.map((f) => documentService().uploadDocument(f)));
+      const results = await Promise.all(
+        files.map((f) => documentService().uploadDocument(f, scope))
+      );
       const failed = results.filter((r) => !r).length;
       if (failed === 0) {
         toast.success(`${files.length} file${files.length > 1 ? "s" : ""} uploaded!`);
@@ -158,6 +168,22 @@ export default function KnowledgeBaseUploadModal({
             className="hidden"
             onChange={(e) => handleFiles(e.target.files)}
           />
+        </div>
+
+        {/* Scope selector */}
+        <div className="mt-3">
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">Scope</label>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as Scope)}
+            className="h-9 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            {SCOPE_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Staged files (not yet uploaded) */}

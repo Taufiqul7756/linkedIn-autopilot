@@ -3,6 +3,7 @@ export type WebsiteStatus = "pending" | "crawling" | "ready" | "error";
 export type WebsiteType = {
   id: string;
   url: string;
+  scope: "corporate" | "personal";
   status: WebsiteStatus;
   summary: string;
   facets: Record<string, unknown>;

@@ -28,8 +28,16 @@ function WebsiteStatusDot({ status }: { status: WebsiteType["status"] }) {
   );
 }
 
+const SCOPE_OPTIONS = [
+  { value: "corporate", label: "Corporate" },
+  { value: "personal", label: "Personal" },
+] as const;
+
+type Scope = (typeof SCOPE_OPTIONS)[number]["value"];
+
 export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
   const [url, setUrl] = useState("");
+  const [scope, setScope] = useState<Scope>("corporate");
   const queryClient = useQueryClient();
 
   const { data: websitesData, isLoading: websitesLoading } = useQueryWithTokenRefresh(
@@ -41,12 +49,14 @@ export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
   const existingUrls = websitesData?.results ?? [];
 
   const addWebsite = useMutationWithTokenRefresh(
-    (websiteUrl: string) => websiteService().addWebsite(websiteUrl),
+    ({ websiteUrl, websiteScope }: { websiteUrl: string; websiteScope: Scope }) =>
+      websiteService().addWebsite(websiteUrl, websiteScope),
     {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["websites"] });
         toast.success("Website added! Indexing in progress.");
         setUrl("");
+        setScope("corporate");
       },
       onError: (error: unknown) => {
         toast.error(extractErrorMessage(error) || "Failed to add website.");
@@ -71,7 +81,7 @@ export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
     e.preventDefault();
     const trimmed = url.trim();
     if (!trimmed) return;
-    addWebsite.mutate(trimmed);
+    addWebsite.mutate({ websiteUrl: trimmed, websiteScope: scope });
   };
 
   return (
@@ -94,6 +104,20 @@ export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
             <p className="mt-1.5 text-xs text-gray-400">
               We&apos;ll crawl this URL to build your knowledge base.
             </p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Scope</label>
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as Scope)}
+              className="h-9 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              {SCOPE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
           </div>
           <button
             type="submit"

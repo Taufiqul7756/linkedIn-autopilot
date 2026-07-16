@@ -8,6 +8,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   width?: "sm" | "md" | "lg" | "xl" | "2xl";
+  disableBackdropClose?: boolean;
 }
 
 const widthClass = {
@@ -18,22 +19,32 @@ const widthClass = {
   "2xl": "max-w-2xl",
 };
 
-export default function Modal({ isOpen, onClose, title, children, width = "md" }: ModalProps) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  width = "md",
+  disableBackdropClose = false,
+}: ModalProps) {
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || disableBackdropClose) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, disableBackdropClose]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={disableBackdropClose ? undefined : onClose}
+      />
 
       {/* Panel */}
       <div

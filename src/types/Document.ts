@@ -1,6 +1,7 @@
 export type DocumentType = {
   id: string;
   file: string;
+  scope: "corporate" | "personal";
   filename: string;
   status: "pending" | "processing" | "extracting" | "ready" | "error";
   num_pages: number | null;
