@@ -48,8 +48,6 @@ export type PaginatedPosts = {
 };
 
 export type GeneratePostsBody = {
-  website_profile: string;
-  documents: string[];
   prompt: string;
   tone: string;
   length: string;

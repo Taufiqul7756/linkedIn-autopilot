@@ -6,7 +6,6 @@ import toast from "react-hot-toast";
 import { cn } from "@/utils/cn";
 import { postsService } from "@/service/postsService";
 import { websiteService } from "@/service/websiteService";
-import { documentService } from "@/service/documentService";
 import ScopeKnowledgeModal from "@/components/linkedin-autopilot/ScopeKnowledgeModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
@@ -58,13 +57,7 @@ export default function GeneratePostsSection() {
   const { data: websites } = useQueryWithTokenRefresh(["websites"], () =>
     websiteService().getWebsites()
   );
-  const { data: documents } = useQueryWithTokenRefresh(["documents"], () =>
-    documentService().getDocuments()
-  );
-
   const website = websites?.results?.[0];
-  const documentIds =
-    documents?.results?.filter((d) => d.status === "ready").map((d) => d.id) ?? [];
 
   const suggestMutation = useMutationWithTokenRefresh(
     (websiteId: string) => postsService().suggestPrompts({ website_profile: websiteId }),
@@ -83,10 +76,8 @@ export default function GeneratePostsSection() {
   );
 
   const generateMutation = useMutationWithTokenRefresh(
-    (websiteId: string) =>
+    () =>
       postsService().generatePosts({
-        website_profile: websiteId,
-        documents: documentIds,
         prompt,
         tone,
         length: length.toLowerCase(),
@@ -97,16 +88,20 @@ export default function GeneratePostsSection() {
       }),
     {
       onSuccess: () => {
+        queryClient.setQueryData(["posts-text-generating"], null);
         toast.success("Posts created — generating images in the background.");
         setPrompt("");
         setSuggestions([]);
         setPromptError(null);
-        // Immediately fetch the newly created posts, then poll until images are ready
+        // Store pre-generate count so ReviewApprovalSection knows when NEW posts arrive
+        const cached = queryClient.getQueryData(["posts", "draft"]) as
+          { count?: number } | undefined;
+        queryClient.setQueryData(["posts-generating"], cached?.count ?? 0);
         queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
-        queryClient.setQueryData(["posts-generating"], Date.now());
         queryClient.invalidateQueries({ queryKey: ["post-stats"] });
       },
       onError: (error: unknown) => {
+        queryClient.setQueryData(["posts-text-generating"], null);
         if (error instanceof AxiosError) {
           const data = error.response?.data as Record<string, unknown> | undefined;
           if (data?.suggested_topics && Array.isArray(data.suggested_topics)) {
@@ -142,7 +137,8 @@ export default function GeneratePostsSection() {
       return;
     }
     setPostCountError("");
-    generateMutation.mutate(website.id);
+    queryClient.setQueryData(["posts-text-generating"], Date.now());
+    generateMutation.mutate(undefined);
   };
 
   const canAct = !!website;

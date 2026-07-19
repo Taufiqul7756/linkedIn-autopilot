@@ -133,8 +133,16 @@ export default function ReviewApprovalSection() {
   const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
-  // Poll after generate — "posts-generating" is set by GeneratePostsSection on success
-  // truthy = polling active; null = not polling
+  // "posts-text-generating" — set when Generate is clicked, cleared on finish
+  const { data: textGeneratingFlag } = useQuery<number | null>({
+    queryKey: ["posts-text-generating"],
+    queryFn: () => null,
+    enabled: false,
+    staleTime: Infinity,
+  });
+  const isTextGenerating = textGeneratingFlag != null;
+
+  // "posts-generating" — set to the pre-generate post count on success; null = not polling
   const { data: baseline } = useQuery<number | null>({
     queryKey: ["posts-generating"],
     queryFn: () => null,
@@ -142,6 +150,8 @@ export default function ReviewApprovalSection() {
     staleTime: Infinity,
   });
   const isPolling = baseline !== null && baseline !== undefined;
+  // baseline is the count of posts that existed BEFORE generation started
+  const baselineCount = typeof baseline === "number" ? baseline : 0;
 
   const { data: postsData, isLoading } = useQueryWithTokenRefresh(
     ["posts", "draft"],
@@ -151,25 +161,30 @@ export default function ReviewApprovalSection() {
         ? (query) => {
             const results =
               (query.state.data as { results?: PostType[] } | undefined)?.results ?? [];
-            const allImagesReady =
-              results.length > 0 && results.every((p) => p.image_status !== "pending");
-            return allImagesReady ? false : 5000;
+            // New posts have arrived AND all images are ready → stop polling
+            const done =
+              results.length > baselineCount && results.every((p) => p.image_status !== "pending");
+            return done ? false : 5000;
           }
         : false,
     }
   );
 
   const posts = postsData?.results ?? [];
-  const isGenerating =
-    isPolling && (posts.length === 0 || posts.some((p) => p.image_status === "pending"));
+  // Show spinner while waiting for new posts to arrive (count hasn't exceeded baseline yet)
+  const isGenerating = isPolling && posts.length <= baselineCount;
 
-  // Clear polling flag once all posts have their images ready
+  // Clear polling flag once new posts have arrived and all images are ready
   useEffect(() => {
     const results = postsData?.results ?? [];
-    if (isPolling && results.length > 0 && results.every((p) => p.image_status !== "pending")) {
+    if (
+      isPolling &&
+      results.length > baselineCount &&
+      results.every((p) => p.image_status !== "pending")
+    ) {
       queryClient.setQueryData(["posts-generating"], null);
     }
-  }, [postsData, isPolling, queryClient]);
+  }, [postsData, isPolling, baselineCount, queryClient]);
 
   const { data: account } = useQueryWithTokenRefresh(["linkedin-account"], () =>
     linkedinService().getAccount()
@@ -283,8 +298,8 @@ export default function ReviewApprovalSection() {
         </div>
       )}
 
-      {/* Generating state — polling for new posts */}
-      {!isLoading && isGenerating && (
+      {/* Generating state — shown while API call is in-flight OR waiting for new posts to arrive */}
+      {!isLoading && (isTextGenerating || isGenerating) && (
         <div className="mb-4 rounded-xl border border-dashed border-blue-200 bg-blue-50 py-12 text-center">
           <LuLoader className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-500" />
           <p className="text-sm font-medium text-blue-600">Generating posts…</p>
@@ -293,7 +308,7 @@ export default function ReviewApprovalSection() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !isGenerating && posts.length === 0 && (
+      {!isLoading && !isTextGenerating && !isGenerating && posts.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-200 bg-white py-12 text-center">
           <p className="text-sm text-gray-400">No drafts awaiting review.</p>
         </div>
