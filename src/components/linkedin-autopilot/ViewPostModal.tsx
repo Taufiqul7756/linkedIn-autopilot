@@ -3,6 +3,7 @@ import { LuEye, LuThumbsUp, LuMessageSquare, LuCalendar, LuClock } from "react-i
 import Modal from "@/components/ui/Modal";
 import { postsService } from "@/service/postsService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 interface ViewPostModalProps {
   isOpen: boolean;
@@ -36,10 +37,13 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModalProps) {
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
+
   const { data: post, isLoading } = useQueryWithTokenRefresh(
-    ["post", postId],
-    () => postsService().getPost(postId!),
-    { enabled: !!postId }
+    ["post", workspaceId, postId],
+    () => postsService(workspaceId).getPost(postId!),
+    { enabled: !!postId && !!workspaceId }
   );
 
   return (
@@ -62,7 +66,6 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
 
       {!isLoading && post && (
         <div className="space-y-5">
-          {/* Status + meta */}
           <div className="flex flex-wrap items-center gap-3">
             <span
               className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${STATUS_STYLES[post.status] ?? "bg-gray-100 text-gray-600"}`}
@@ -70,12 +73,12 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
               {post.status}
             </span>
             {post.tone && (
-              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-500 capitalize">
+              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-500">
                 {post.tone}
               </span>
             )}
             {post.length && (
-              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-500 capitalize">
+              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-500">
                 {post.length}
               </span>
             )}
@@ -86,12 +89,10 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
             )}
           </div>
 
-          {/* Body */}
           <div className="whitespace-pre-line text-sm leading-relaxed text-gray-800">
             {post.body}
           </div>
 
-          {/* Image */}
           {post.image_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -102,7 +103,6 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
             />
           )}
 
-          {/* Hashtags */}
           {parseHashtags(post.hashtags).length > 0 && (
             <div className="flex flex-wrap gap-2">
               {parseHashtags(post.hashtags).map((tag) => (
@@ -113,7 +113,6 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
             </div>
           )}
 
-          {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
               <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -129,7 +128,6 @@ export default function ViewPostModal({ isOpen, onClose, postId }: ViewPostModal
             </div>
           </div>
 
-          {/* Engagement (published only) */}
           {post.status === "published" && post.engagement && (
             <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">

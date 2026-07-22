@@ -2,7 +2,9 @@
 
 ## Overview
 
-A single-page dashboard that lets users generate on-brand LinkedIn posts from their website, review and approve drafts, schedule, and auto-publish — all orchestrated by a multi-agent AI workflow.
+A single-page dashboard that lets users generate on-brand LinkedIn posts from their workspace knowledge base, review and approve drafts, schedule, and auto-publish — all orchestrated by a multi-agent AI workflow.
+
+Every API call is scoped to the **active workspace** via `/workspaces/{workspace_pk}/` prefix. The workspace type (`corporate` / `personal`) controls knowledge grounding and writing voice. `?scope=` param is gone everywhere.
 
 ## Problem
 
@@ -25,11 +27,11 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 - **LinkedIn account card**: Shows connection status (Connected/Disconnected), authorized user, OAuth scope.
   - Action: **Manage** → opens LinkedInManageModal (current account info + "Connect your LinkedIn" button + disconnect link)
 - **Website knowledge base card**: Shows crawl status (Ready/Stale), domain, facet count.
-  - Action: **Add sources** → opens AddUrlModal: add new URL + list existing indexed URLs with status dot + delete per URL (`DELETE /websites/{id}/`)
-  - Action: **Add to Knowledge Base** → opens KnowledgeBaseUploadModal: drag-and-drop PDF upload + list of uploaded docs with status + delete per doc (`DELETE /documents/{id}/`)
+  - Action: **Add sources** → opens AddUrlModal: add new URL + list existing indexed URLs with status dot + delete per URL
+  - Action: **Add to Knowledge Base** → opens KnowledgeBaseUploadModal: drag-and-drop PDF upload + list of uploaded docs with status + delete per doc
   - Action: **Re-crawl** → triggers re-index of website
 - **Stats grid** (2 rows × 4 cards, real API): Row 1 — Drafts · Approved · Scheduled · Published; Row 2 — Failed · Published This Week · Next Scheduled · Avg. Engagement
-  - API: `GET /api/v1/content/posts/stats/`
+  - API: `GET /api/v1/workspaces/{workspace_pk}/content/posts/stats/`
   - Response fields: `drafts`, `approved`, `scheduled`, `published`, `failed`, `published_this_week`, `next_scheduled_at` (ISO), `avg_engagement`
   - `next_scheduled_at` displayed as relative time ("in 2h 40m")
   - `avg_engagement` displayed as percentage with 1 decimal
@@ -37,60 +39,50 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 ### 3. Generate Posts from Knowledge Base
 - Controls: Number of posts (free-form input), Tone (dropdown), Length (Short/Medium/Long), Content Style (dropdown), Use Emoji (Yes/No toggle)
 - Optional custom prompt textarea with placeholder
-- "Suggest prompts" button → `POST /content/posts/suggest_prompts/` with `website_profile` UUID → shows clickable suggestion chips; clicking a chip fills the prompt textarea
+- "Suggest prompts" button → `POST /workspaces/{workspace_pk}/content/posts/suggest_prompts/` → shows clickable suggestion chips
 - Footer note: posts stay as drafts until approved
-- Primary action: Generate → `POST /content/posts/generate/` with `{ website_profile, documents, prompt, tone, length, content_style, use_emoji, count }`; both buttons disabled if no website connected
-- Generate is now **synchronous**: posts are created immediately (no queue); images are generated async in the background (`image_status: "pending"`)
-- On success: immediately invalidates `["posts","draft"]` so cards appear; sets `["posts-generating"]` flag to trigger image polling
-- If prompt is not covered by KB, API returns `{ prompt, suggested_topics[] }` → shown as amber warning banner with clickable topic chips
-- Card has a gradient background: blue-gray (`#ECEEF8`) → white (top to bottom)
+- Primary action: Generate → `POST /workspaces/{workspace_pk}/content/posts/generate/` with `{ prompt, tone, length, content_style, use_emoji, count }` — **no `scope` field**
+- Generate is **synchronous**: posts created immediately; images generated async (`image_status: "pending"`)
+- On success: invalidates `["posts","draft"]`; sets `["posts-generating"]` flag for image polling
+- If prompt not covered by KB → API returns `{ prompt, suggested_topics[] }` → amber warning banner
+- Card has gradient background: blue-gray (`#ECEEF8`) → white
 
 ### 4. Review & Approval
 - Shows drafts awaiting review (badge count)
-- Polls every 5s after Generate fires (via `["posts-generating"]` React Query cache flag); stops when **all** draft posts have `image_status !== "pending"`
-- Section-level generating spinner shown while polling and no posts yet (or all posts still pending images)
+- Polls every 5s after Generate fires (via `["posts-generating"]` flag); stops when all drafts have `image_status !== "pending"`
 - Two-column card grid, each card showing:
   - Author avatar (initials from LinkedIn account name), Draft badge
   - Post body text (whitespace-pre-line)
-  - **Image area**: if `image_status === "pending"` → blue dashed placeholder with spinner ("Generating image…"); if `image_url` present → renders image; otherwise nothing
+  - **Image area**: `pending` → blue dashed spinner; `image_url` present → image; otherwise nothing
   - Hashtags (prefixed with `#`)
   - **Edit** → EditPostModal
-  - **Regenerate Post** → RegeneratePostConfirmModal ("your current version will be lost")
-  - **Regenerate Image** → floating prompt textarea dropdown; "Generate Image" button enabled when prompt non-empty → `POST /content/posts/{id}/generate_image/`; on success re-fetches draft list so card auto-updates
-  - **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
-  - **Approve** → `POST /content/posts/{id}/approve/`
-- No "View all drafts" link
-- APIs: `GET /content/posts/?status=draft`, `POST /approve/`, `DELETE`
+  - **Regenerate Post** → RegeneratePostConfirmModal → `POST /workspaces/{workspace_pk}/content/posts/{id}/regenerate/`
+  - **Regenerate Image** → floating prompt textarea → `POST /workspaces/{workspace_pk}/content/posts/{id}/generate_image/`
+  - **Delete** → DeleteConfirmModal → `DELETE /workspaces/{workspace_pk}/content/posts/{id}/`
+  - **Approve** → `POST /workspaces/{workspace_pk}/content/posts/{id}/approve/`
+- APIs: `GET /workspaces/{workspace_pk}/content/posts/?status=draft`
 
 ### 5. Post Management
-- Excludes draft posts server-side via `exclude_status=draft` query param (drafts live in Review & Approval only)
+- Excludes draft posts server-side via `exclude_status=draft`
 - Table with checkbox selection + select-all (indeterminate state)
 - **Bulk delete** appears when ≥ 2 rows selected
-- **Page size selector** (2 / 5 / 10 / 15 / 20 per page, default 10) — passed as `page_size` to API
-- **Filter** dropdown: All / Approved / Scheduled / Published / Failed (no Draft option)
-- Pagination bar always visible at bottom (Previous / Next, page X · N total)
+- **Page size selector** (2 / 5 / 10 / 15 / 20 per page, default 10)
+- **Filter** dropdown: All / Approved / Scheduled / Published / Failed (no Draft)
+- Pagination bar always visible (Previous / Next, page X · N total)
 - Columns: ☐ · POST · CREATED · SCHEDULED · PUBLISHED · STATUS · ENGAGEMENT · ACTIONS
 - Status pills: Approved (emerald) · Scheduled (blue) · Published (green) · Failed (red)
-- Engagement cell: Published → impressions/likes/comments/rate%; Scheduled → "In queue"; Approved → "Ready"; Failed → "Publishing failed"
 - Per-row actions based on status:
-  - Approved → **Schedule** → ScheduleModal → `POST /content/posts/{id}/schedule/`
-  - Scheduled → **Reschedule** → ScheduleModal (reschedule mode, shows current) + ▶ play button
+  - Approved → **Schedule** → ScheduleModal → `POST /workspaces/{workspace_pk}/content/posts/{id}/schedule/`
+  - Scheduled → **Reschedule** → ScheduleModal + ▶ play button
   - Failed → **Retry**
-  - Published → **External link** icon (opens LinkedIn post)
-- Three-dot dropdown per row: **View** → ViewPostModal · **Delete** → DeleteConfirmModal → `DELETE /content/posts/{id}/`
-- APIs: `GET /content/posts/?page_size=N&page=N&status=X&exclude_status=draft`, `POST /schedule/`, `DELETE`
+  - Published → **External link** icon
+- Three-dot dropdown: **View** → ViewPostModal · **Delete** → DeleteConfirmModal → `DELETE /workspaces/{workspace_pk}/content/posts/{id}/`
+- APIs: `GET /workspaces/{workspace_pk}/content/posts/?page_size=N&page=N&status=X&exclude_status=draft`
 
 ### 6. Autopilot Agent Workflow
 - Live status indicator
 - Orchestrator banner: coordinating status, agents active, posts in flight, gate needs-you count
-- 7 agent cards in a 4+3 grid:
-  - Connector Agent (OAuth & tokens) — Connected
-  - Knowledge Agent (crawls site, builds KB) — Working
-  - Generator Agent (drafts posts from KB) — Working
-  - Review Gate (human approval) — Needs you
-  - Scheduler Agent (queue & timezone) — Working
-  - Publisher Agent (auto-publish, retry, log) — Working
-  - Analytics Agent (pulls post metrics) — Working
+- 7 agent cards in 4+3 grid (Connector, Knowledge, Generator, Review Gate, Scheduler, Publisher, Analytics)
 
 ---
 
@@ -98,57 +90,68 @@ Give users a fully automated LinkedIn content pipeline with a single human appro
 
 | Modal | Trigger | Content |
 | --- | --- | --- |
-| `LinkedInManageModal` | Manage button | Connected account info, Connect your LinkedIn, Disconnect |
-| `KnowledgeBaseUploadModal` | Add sources button | Drag-and-drop file upload (PDF/DOC/DOCX), additional context textarea |
-| `ScheduleModal` | Schedule / Reschedule button | Post preview, date picker, time picker, timezone (read-only); `onConfirm(scheduledAt: string)` callback |
-| `EditPostModal` | Edit button | Post content textarea (char count), image section (view/remove/upload), hashtags input; image auto-uploads on select via `POST /upload_image/` |
-| `RejectConfirmModal` | Delete button (Review & Approval + Post Management three-dot) | Warning icon, post excerpt, Cancel + Delete post |
-| `ViewPostModal` | Three-dot → View | Fetches `GET /content/posts/{id}/`; shows status, tone/length/style chips, body, image, hashtags, dates, engagement |
-| `RegeneratePostConfirmModal` | Regenerate Post button | Amber warning icon, post excerpt, warning that current version will be lost; Cancel + Regenerate |
+| `LinkedInManageModal` | Manage button | Connected account info, Connect, Disconnect |
+| `KnowledgeBaseUploadModal` | Add sources button | Drag-and-drop PDF/DOC/DOCX + textarea |
+| `ScheduleModal` | Schedule / Reschedule | Date + time + timezone; `onConfirm(scheduledAt)` |
+| `EditPostModal` | Edit button | Content textarea + image upload + hashtags |
+| `RejectConfirmModal` | Delete button | Warning + post excerpt + Cancel + Delete |
+| `ViewPostModal` | Three-dot → View | Full post detail from `GET /content/posts/{id}/` |
+| `RegeneratePostConfirmModal` | Regenerate Post | Amber warning, post excerpt, Cancel + Regenerate |
 
 ---
 
 ## Data Model (real API)
 
-Defined in `src/types/Post.ts`:
-
 | Type | Key Fields |
 | --- | --- |
-| `PostType` | id, body, hashtags (string[]), cta, image_url, image_file, image_query, image_status (`"pending"` while async generation in progress), tone, length, content_style, use_emoji, status, scheduled_at, published_at, linkedin_urn, engagement (PostEngagement\|null), created_at |
+| `PostType` | id, body, hashtags (string[]), image_url, image_status (`"pending"`/`"done"`/`"failed"`), tone, length, content_style, use_emoji, status, scheduled_at, published_at, linkedin_urn, engagement, created_at |
 | `PostEngagement` | impressions, likes, comments, rate, synced_at |
-| `PostStatsType` | drafts, approved, scheduled, published, failed, published_this_week, next_scheduled_at, avg_engagement (all nullable) |
+| `PostStatsType` | drafts, approved, scheduled, published, failed, published_this_week, next_scheduled_at, avg_engagement |
 | `PaginatedPosts` | count, next, previous, results: PostType[] |
 
-## Status Flows
+## Status Flow
 
 ```
 [Draft] → [Approved] → [Scheduled] → [Published]
                                     ↘ [Failed → retry]
 ```
 
-## API Endpoints Used
+## API Endpoints (workspace-scoped)
+
+All endpoints prefixed with `/api/v1/workspaces/{workspace_pk}/`
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| POST | `/auth/logout/` | Sign out (clears session + localStorage) |
-| GET | `/content/posts/stats/` | Stats grid |
-| GET | `/content/posts/?status=draft` | Draft posts list |
-| GET | `/content/posts/?exclude_status=draft&page=N&page_size=N` | Post management table (excludes drafts server-side) |
-| GET | `/content/posts/{id}/` | View single post |
-| POST | `/content/posts/generate/` | Generate posts |
-| POST | `/content/posts/suggest_prompts/` | Prompt suggestions |
-| POST | `/content/posts/{id}/approve/` | Approve draft |
-| POST | `/content/posts/{id}/schedule/` | Schedule post |
-| POST | `/content/posts/{id}/upload_image/` | Upload post image (binary FormData, `image` field) |
-| PATCH | `/content/posts/{id}/` | Edit body / hashtags |
-| DELETE | `/content/posts/{id}/` | Delete post |
-| POST | `/content/posts/{id}/generate_image/` | Generate image for post (`{ image_prompt }` → updates `image_url`) |
-| GET | `/websites/` | List indexed websites |
-| POST | `/websites/` | Add website URL |
-| DELETE | `/websites/{id}/` | Remove website URL |
-| GET | `/documents/` | List uploaded documents |
-| POST | `/documents/` | Upload document (PDF) |
-| DELETE | `/documents/{id}/` | Delete document |
+| GET | `.../content/posts/stats/` | Stats grid |
+| GET | `.../content/posts/?status=draft` | Draft posts list |
+| GET | `.../content/posts/?exclude_status=draft&page=N&page_size=N` | Post management table |
+| GET | `.../content/posts/{id}/` | View single post |
+| POST | `.../content/posts/generate/` | Generate posts (no scope in body) |
+| POST | `.../content/posts/suggest_prompts/` | Prompt suggestions |
+| POST | `.../content/posts/{id}/approve/` | Approve draft |
+| POST | `.../content/posts/{id}/schedule/` | Schedule post |
+| POST | `.../content/posts/{id}/upload_image/` | Upload image (FormData, `image` field) |
+| PATCH | `.../content/posts/{id}/` | Edit body / hashtags |
+| DELETE | `.../content/posts/{id}/` | Delete post |
+| POST | `.../content/posts/{id}/generate_image/` | Generate image (`{ image_prompt }`) |
+| POST | `.../content/posts/{id}/regenerate/` | Regenerate post |
+| POST | `.../content/posts/{id}/refresh_metrics/` | Refresh engagement metrics |
+| GET | `.../websites/` | List indexed websites |
+| POST | `.../websites/` | Add website URL (no scope field) |
+| DELETE | `.../websites/{id}/` | Remove website URL |
+| POST | `.../websites/{id}/recrawl/` | Re-crawl website |
+| GET | `.../documents/` | List uploaded documents |
+| POST | `.../documents/` | Upload document (no scope field) |
+| DELETE | `.../documents/{id}/` | Delete document |
+| POST | `.../documents/{id}/reextract/` | Re-extract document |
+| GET | `.../linkedin/connect/` | Returns `{ authorize_url }` |
+| GET/DEL | `.../linkedin/account/` | Status (GET) / disconnect (DELETE) |
+
+Top-level (unchanged):
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| POST | `/api/v1/auth/logout/` | Sign out |
+| GET | `/api/v1/linkedin/callback/` | OAuth callback (workspace from signed state) |
 
 ## Out of Scope (remaining)
 
@@ -156,6 +159,5 @@ Defined in `src/types/Post.ts`:
 - Calendar view
 - Bulk delete confirmation modal
 - Run Agent API call
-- Regenerate Post API
-- Image removal via PATCH (backend to support `image_url: ""`)
+- Image removal via PATCH
 - Hashtag PATCH (backend fixing)

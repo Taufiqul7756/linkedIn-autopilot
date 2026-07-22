@@ -1,11 +1,12 @@
 import { get, post, del } from "@/lib/api";
 import { PaginatedWebsites, WebsiteType } from "@/types/Website";
 
-export const websiteService = () => ({
-  getWebsites: () => get<PaginatedWebsites>("/websites/"),
-  addWebsite: (url: string, scope: "corporate" | "personal") =>
-    post<WebsiteType>("/websites/", { url, scope }),
-  deleteWebsite: (id: string) => del<void>(`/websites/${id}/`),
+export const websiteService = (workspaceId: string) => ({
+  getWebsites: () => get<PaginatedWebsites>(`/workspaces/${workspaceId}/websites/`),
+  addWebsite: (url: string) => post<WebsiteType>(`/workspaces/${workspaceId}/websites/`, { url }),
+  deleteWebsite: (id: string) => del<void>(`/workspaces/${workspaceId}/websites/${id}/`),
   recrawl: (id: string, url: string) =>
-    post<{ status: string }>(`/websites/${id}/recrawl/`, { url }),
+    post<{ status: string }>(`/workspaces/${workspaceId}/websites/${id}/recrawl/`, {
+      url,
+    }),
 });

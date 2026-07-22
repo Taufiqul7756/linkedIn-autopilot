@@ -19,6 +19,7 @@ import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import { cn } from "@/utils/cn";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import type { WebsiteType } from "@/types/Website";
 import type { DocumentType } from "@/types/Document";
 
@@ -94,6 +95,8 @@ export default function ScopeKnowledgeModal({ isOpen, onClose, scope }: ScopeKno
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
 
   // Track IDs of websites submitted from this modal so we can toast on crawl completion.
   // Refs persist even when the modal is closed, so the toast fires even after dismissal.
@@ -101,8 +104,8 @@ export default function ScopeKnowledgeModal({ isOpen, onClose, scope }: ScopeKno
   const prevStatusMap = useRef<Record<string, string>>({});
 
   const { data: websitesData } = useQueryWithTokenRefresh(
-    ["websites"],
-    () => websiteService().getWebsites(),
+    ["websites", workspaceId],
+    () => websiteService(workspaceId).getWebsites(),
     {
       refetchInterval: (query) => {
         if (pendingCrawlIds.current.size > 0) return 3000;
@@ -116,8 +119,8 @@ export default function ScopeKnowledgeModal({ isOpen, onClose, scope }: ScopeKno
   );
 
   const { data: docsData } = useQueryWithTokenRefresh(
-    ["documents"],
-    () => documentService().getDocuments(),
+    ["documents", workspaceId],
+    () => documentService(workspaceId).getDocuments(),
     {
       refetchInterval: (query) => {
         const results = query.state.data?.results ?? [];
@@ -154,10 +157,10 @@ export default function ScopeKnowledgeModal({ isOpen, onClose, scope }: ScopeKno
   }, [websitesData]);
 
   const addWebsite = useMutationWithTokenRefresh(
-    (websiteUrl: string) => websiteService().addWebsite(websiteUrl, scope),
+    (websiteUrl: string) => websiteService(workspaceId).addWebsite(websiteUrl),
     {
       onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: ["websites"] });
+        queryClient.invalidateQueries({ queryKey: ["websites", workspaceId] });
         toast.success("Website added! Crawling in progress…");
         if (data) {
           pendingCrawlIds.current.add(data.id);
@@ -199,10 +202,10 @@ export default function ScopeKnowledgeModal({ isOpen, onClose, scope }: ScopeKno
     if (files.length === 0) return;
     setIsUploading(true);
     try {
-      await Promise.all(files.map((f) => documentService().uploadDocument(f, scope)));
+      await Promise.all(files.map((f) => documentService(workspaceId).uploadDocument(f)));
       toast.success(`${files.length} file${files.length > 1 ? "s" : ""} uploaded!`);
       setFiles([]);
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] });
     } catch {
       toast.error("Upload failed. Please try again.");
     } finally {

@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { websiteService } from "@/service/websiteService";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import { cn } from "@/utils/cn";
 import type { WebsiteType } from "@/types/Website";
@@ -28,35 +29,27 @@ function WebsiteStatusDot({ status }: { status: WebsiteType["status"] }) {
   );
 }
 
-const SCOPE_OPTIONS = [
-  { value: "corporate", label: "Corporate" },
-  { value: "personal", label: "Personal" },
-] as const;
-
-type Scope = (typeof SCOPE_OPTIONS)[number]["value"];
-
 export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
   const [url, setUrl] = useState("");
-  const [scope, setScope] = useState<Scope>("corporate");
   const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
 
   const { data: websitesData, isLoading: websitesLoading } = useQueryWithTokenRefresh(
-    ["websites"],
-    () => websiteService().getWebsites(),
-    { enabled: isOpen }
+    ["websites", workspaceId],
+    () => websiteService(workspaceId).getWebsites(),
+    { enabled: isOpen && !!workspaceId }
   );
 
   const existingUrls = websitesData?.results ?? [];
 
   const addWebsite = useMutationWithTokenRefresh(
-    ({ websiteUrl, websiteScope }: { websiteUrl: string; websiteScope: Scope }) =>
-      websiteService().addWebsite(websiteUrl, websiteScope),
+    (websiteUrl: string) => websiteService(workspaceId).addWebsite(websiteUrl),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["websites"] });
+        queryClient.invalidateQueries({ queryKey: ["websites", workspaceId] });
         toast.success("Website added! Indexing in progress.");
         setUrl("");
-        setScope("corporate");
       },
       onError: (error: unknown) => {
         toast.error(extractErrorMessage(error) || "Failed to add website.");
@@ -65,10 +58,10 @@ export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
   );
 
   const deleteWebsite = useMutationWithTokenRefresh(
-    (id: string) => websiteService().deleteWebsite(id),
+    (id: string) => websiteService(workspaceId).deleteWebsite(id),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["websites"] });
+        queryClient.invalidateQueries({ queryKey: ["websites", workspaceId] });
         toast.success("Website removed.");
       },
       onError: (error: unknown) => {
@@ -81,7 +74,7 @@ export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
     e.preventDefault();
     const trimmed = url.trim();
     if (!trimmed) return;
-    addWebsite.mutate({ websiteUrl: trimmed, websiteScope: scope });
+    addWebsite.mutate(trimmed);
   };
 
   return (
@@ -104,20 +97,6 @@ export default function AddUrlModal({ isOpen, onClose }: AddUrlModalProps) {
             <p className="mt-1.5 text-xs text-gray-400">
               We&apos;ll crawl this URL to build your knowledge base.
             </p>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Scope</label>
-            <select
-              value={scope}
-              onChange={(e) => setScope(e.target.value as Scope)}
-              className="h-9 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            >
-              {SCOPE_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
           </div>
           <button
             type="submit"

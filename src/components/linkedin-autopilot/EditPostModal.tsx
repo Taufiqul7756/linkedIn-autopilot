@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Modal from "@/components/ui/Modal";
 import { postsService } from "@/service/postsService";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType } from "@/types/Post";
 
@@ -28,6 +29,8 @@ function getInitials(name: string) {
 export default function EditPostModal({ isOpen, onClose, post, accountName }: EditPostModalProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
 
   const [content, setContent] = useState(post?.body ?? "");
   const [hashtags, setHashtags] = useState(() => {
@@ -51,32 +54,27 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
         hashtags: hashtagsArray,
       };
       if (imageRemoved) data.image_url = "";
-      return postsService().patchPost(id, data);
+      return postsService(workspaceId).patchPost(id, data);
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
         toast.success("Post saved.");
         onClose();
       },
-      onError: (error: unknown) => {
-        toast.error(extractErrorMessage(error));
-      },
+      onError: (error: unknown) => toast.error(extractErrorMessage(error)),
     }
   );
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !post) return;
-
-    // Show local preview immediately
     setNewImagePreview(URL.createObjectURL(file));
     setImageRemoved(false);
     setIsUploading(true);
-
     try {
-      await postsService().uploadImage(post.id, file);
-      queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+      await postsService(workspaceId).uploadImage(post.id, file);
+      queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
       toast.success("Image uploaded.");
     } catch (err) {
       toast.error(extractErrorMessage(err));
@@ -127,13 +125,12 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
           <p className="mt-1 text-right text-xs text-gray-400">{content.length} chars</p>
         </div>
 
-        {/* Image section label */}
+        {/* Image section */}
         <div>
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
             Image
           </p>
 
-          {/* Existing image */}
           {showExistingImage && (
             <div className="relative overflow-hidden rounded-xl border border-gray-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -146,14 +143,12 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
               <button
                 onClick={() => setImageRemoved(true)}
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                title="Remove image"
               >
                 <LuX className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
 
-          {/* New image preview */}
           {showNewPreview && (
             <div className="relative overflow-hidden rounded-xl border border-gray-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -171,7 +166,6 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
                 <button
                   onClick={handleRemoveNew}
                   className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                  title="Remove image"
                 >
                   <LuX className="h-3.5 w-3.5" />
                 </button>
@@ -179,7 +173,6 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
             </div>
           )}
 
-          {/* Upload area (shown when no image or image removed) */}
           {showUploadArea && (
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -200,7 +193,6 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
             onChange={handleFileChange}
           />
 
-          {/* Undo remove */}
           {imageRemoved && !newImagePreview && post.image_url && (
             <p className="mt-1.5 text-xs text-gray-400">
               Original image removed.{" "}
@@ -230,7 +222,6 @@ export default function EditPostModal({ isOpen, onClose, post, accountName }: Ed
         </div>
       </div>
 
-      {/* Actions */}
       <div className="mt-6 flex items-center justify-end gap-2.5">
         <button
           onClick={onClose}
