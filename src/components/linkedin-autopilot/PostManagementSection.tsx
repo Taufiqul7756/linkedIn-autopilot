@@ -19,6 +19,7 @@ import { cn } from "@/utils/cn";
 import { postsService } from "@/service/postsService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType, PostEngagement } from "@/types/Post";
 import ScheduleModal from "./ScheduleModal";
@@ -114,18 +115,12 @@ function EngagementCell({
       </div>
     );
   }
-  if (status === "scheduled") {
+  if (status === "scheduled")
     return <span className="text-xs font-medium text-blue-600">In queue</span>;
-  }
-  if (status === "approved") {
-    return <span className="text-xs text-gray-400">Ready</span>;
-  }
-  if (status === "draft") {
-    return <span className="text-xs text-gray-400">Awaiting review</span>;
-  }
-  if (status === "failed") {
+  if (status === "approved") return <span className="text-xs text-gray-400">Ready</span>;
+  if (status === "draft") return <span className="text-xs text-gray-400">Awaiting review</span>;
+  if (status === "failed")
     return <span className="text-xs font-medium text-red-600">Publishing failed</span>;
-  }
   return null;
 }
 
@@ -278,11 +273,9 @@ function IndeterminateCheckbox({
   onChange: () => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (ref.current) ref.current.indeterminate = indeterminate;
   }, [indeterminate]);
-
   return (
     <input
       ref={ref}
@@ -301,6 +294,9 @@ const PAGE_SIZE_OPTIONS = [2, 5, 10, 15, 20];
 
 export default function PostManagementSection() {
   const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
+
   const [activeFilter, setActiveFilter] = useState<StatusKey | "all">("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -312,9 +308,14 @@ export default function PostManagementSection() {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const { data: postsData, isLoading } = useQueryWithTokenRefresh(
-    ["posts", "all", activeFilter, page, pageSize],
+    ["posts", "all", workspaceId, activeFilter, page, pageSize],
     () =>
-      postsService().getAllPosts(activeFilter === "all" ? undefined : activeFilter, page, pageSize)
+      postsService(workspaceId).getAllPosts(
+        activeFilter === "all" ? undefined : activeFilter,
+        page,
+        pageSize
+      ),
+    { enabled: !!workspaceId }
   );
 
   const posts = postsData?.results ?? [];
@@ -342,11 +343,8 @@ export default function PostManagementSection() {
   const toggleAll = () => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allSelected) {
-        allIds.forEach((id) => next.delete(id));
-      } else {
-        allIds.forEach((id) => next.add(id));
-      }
+      if (allSelected) allIds.forEach((id) => next.delete(id));
+      else allIds.forEach((id) => next.add(id));
       return next;
     });
   };
@@ -360,14 +358,13 @@ export default function PostManagementSection() {
     });
   };
 
-  // Schedule mutation
   const scheduleMutation = useMutationWithTokenRefresh(
     ({ id, scheduledAt }: { id: string; scheduledAt: string }) =>
-      postsService().schedulePost(id, scheduledAt),
+      postsService(workspaceId).schedulePost(id, scheduledAt),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["posts", "all"] });
-        queryClient.invalidateQueries({ queryKey: ["post-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["posts", "all", workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["post-stats", workspaceId] });
         toast.success(
           scheduleTarget?.mode === "reschedule" ? "Post rescheduled!" : "Post scheduled!"
         );
@@ -382,7 +379,6 @@ export default function PostManagementSection() {
     scheduleMutation.mutate({ id: scheduleTarget.post.id, scheduledAt });
   };
 
-  // Delete post(s)
   const handleDeletePost = (id: string) => {
     const post = posts.find((p) => p.id === id) ?? null;
     setDeleteTarget(post);
@@ -392,10 +388,10 @@ export default function PostManagementSection() {
     if (!deleteTarget) return;
     setIsConfirmingDelete(true);
     try {
-      await postsService().rejectPost(deleteTarget.id);
-      queryClient.invalidateQueries({ queryKey: ["posts", "all"] });
-      queryClient.invalidateQueries({ queryKey: ["post-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+      await postsService(workspaceId).rejectPost(deleteTarget.id);
+      queryClient.invalidateQueries({ queryKey: ["posts", "all", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["post-stats", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
       toast.success("Post deleted.");
       setDeleteTarget(null);
     } finally {
@@ -406,10 +402,10 @@ export default function PostManagementSection() {
   const handleBulkDelete = async () => {
     if (selectedCount === 0) return;
     setIsDeleting(true);
-    await Promise.all([...selected].map((id) => postsService().rejectPost(id)));
-    queryClient.invalidateQueries({ queryKey: ["posts", "all"] });
-    queryClient.invalidateQueries({ queryKey: ["post-stats"] });
-    queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+    await Promise.all([...selected].map((id) => postsService(workspaceId).rejectPost(id)));
+    queryClient.invalidateQueries({ queryKey: ["posts", "all", workspaceId] });
+    queryClient.invalidateQueries({ queryKey: ["post-stats", workspaceId] });
+    queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
     setSelected(new Set());
     toast.success(`${selectedCount} post${selectedCount > 1 ? "s" : ""} deleted.`);
     setIsDeleting(false);
@@ -518,7 +514,6 @@ export default function PostManagementSection() {
                         isSelected ? "bg-blue-50" : "hover:bg-gray-50"
                       )}
                     >
-                      {/* Checkbox */}
                       <td className="w-10 px-4 py-4">
                         <input
                           type="checkbox"
@@ -527,8 +522,6 @@ export default function PostManagementSection() {
                           className="h-4 w-4 rounded border-gray-300 accent-blue-600"
                         />
                       </td>
-
-                      {/* Post */}
                       <td className="max-w-xs px-5 py-4">
                         <p className="line-clamp-2 text-sm text-gray-800">{post.body}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-1.5">
@@ -544,13 +537,9 @@ export default function PostManagementSection() {
                           )}
                         </div>
                       </td>
-
-                      {/* Created */}
                       <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-500">
                         {formatDate(post.created_at)}
                       </td>
-
-                      {/* Scheduled */}
                       <td className="whitespace-nowrap px-5 py-4 text-sm">
                         {post.scheduled_at ? (
                           <span className="font-medium text-blue-600">
@@ -560,8 +549,6 @@ export default function PostManagementSection() {
                           <span className="text-gray-300">—</span>
                         )}
                       </td>
-
-                      {/* Published */}
                       <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-500">
                         {post.published_at ? (
                           formatDateTime(post.published_at)
@@ -569,8 +556,6 @@ export default function PostManagementSection() {
                           <span className="text-gray-300">—</span>
                         )}
                       </td>
-
-                      {/* Status */}
                       <td className="px-5 py-4">
                         <span
                           className={cn(
@@ -584,13 +569,9 @@ export default function PostManagementSection() {
                           {STATUS_LABELS[post.status]}
                         </span>
                       </td>
-
-                      {/* Engagement */}
                       <td className="px-5 py-4">
                         <EngagementCell status={post.status} engagement={post.engagement} />
                       </td>
-
-                      {/* Actions */}
                       <td className="whitespace-nowrap px-5 py-4">
                         <div className="flex items-center gap-2">
                           {post.status === "published" && post.linkedin_urn && (
@@ -623,11 +604,6 @@ export default function PostManagementSection() {
                                 <LuPlay className="h-3.5 w-3.5" />
                               </button>
                             </>
-                          )}
-                          {post.status === "draft" && (
-                            <button className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                              Review
-                            </button>
                           )}
                           {post.status === "failed" && (
                             <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100">
@@ -674,7 +650,6 @@ export default function PostManagementSection() {
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
       <RejectConfirmModal
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
@@ -683,14 +658,12 @@ export default function PostManagementSection() {
         isConfirming={isConfirmingDelete}
       />
 
-      {/* View post modal */}
       <ViewPostModal
         isOpen={viewPostId !== null}
         onClose={() => setViewPostId(null)}
         postId={viewPostId}
       />
 
-      {/* Schedule / Reschedule modal */}
       <ScheduleModal
         key={scheduleTarget?.post.id ?? "no-schedule"}
         isOpen={scheduleTarget !== null}

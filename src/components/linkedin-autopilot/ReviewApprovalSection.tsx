@@ -16,6 +16,7 @@ import { postsService } from "@/service/postsService";
 import { linkedinService } from "@/service/linkedinService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import type { PostType } from "@/types/Post";
 import EditPostModal from "./EditPostModal";
@@ -59,7 +60,6 @@ function ImagePromptDropdown({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Close dropdown when generation finishes
   useEffect(() => {
     if (wasGenerating.current && !isGenerating) setOpen(false);
     wasGenerating.current = isGenerating;
@@ -124,6 +124,9 @@ function getInitials(name: string) {
 
 export default function ReviewApprovalSection() {
   const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
+
   const [editPost, setEditPost] = useState<PostType | null>(null);
   const [rejectPost, setRejectPost] = useState<PostType | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -133,7 +136,6 @@ export default function ReviewApprovalSection() {
   const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
-  // "posts-text-generating" — set when Generate is clicked, cleared on finish
   const { data: textGeneratingFlag } = useQuery<number | null>({
     queryKey: ["posts-text-generating"],
     queryFn: () => null,
@@ -142,7 +144,6 @@ export default function ReviewApprovalSection() {
   });
   const isTextGenerating = textGeneratingFlag != null;
 
-  // "posts-generating" — set to the pre-generate post count on success; null = not polling
   const { data: baseline } = useQuery<number | null>({
     queryKey: ["posts-generating"],
     queryFn: () => null,
@@ -150,18 +151,17 @@ export default function ReviewApprovalSection() {
     staleTime: Infinity,
   });
   const isPolling = baseline !== null && baseline !== undefined;
-  // baseline is the count of posts that existed BEFORE generation started
   const baselineCount = typeof baseline === "number" ? baseline : 0;
 
   const { data: postsData, isLoading } = useQueryWithTokenRefresh(
-    ["posts", "draft"],
-    () => postsService().getDraftPosts(),
+    ["posts", "draft", workspaceId],
+    () => postsService(workspaceId).getDraftPosts(),
     {
+      enabled: !!workspaceId,
       refetchInterval: isPolling
         ? (query) => {
             const results =
               (query.state.data as { results?: PostType[] } | undefined)?.results ?? [];
-            // New posts have arrived AND all images are ready → stop polling
             const done =
               results.length > baselineCount && results.every((p) => p.image_status !== "pending");
             return done ? false : 5000;
@@ -171,10 +171,8 @@ export default function ReviewApprovalSection() {
   );
 
   const posts = postsData?.results ?? [];
-  // Show spinner while waiting for new posts to arrive (count hasn't exceeded baseline yet)
   const isGenerating = isPolling && posts.length <= baselineCount;
 
-  // Clear polling flag once new posts have arrived and all images are ready
   useEffect(() => {
     const results = postsData?.results ?? [];
     if (
@@ -186,18 +184,19 @@ export default function ReviewApprovalSection() {
     }
   }, [postsData, isPolling, baselineCount, queryClient]);
 
-  const { data: account } = useQueryWithTokenRefresh(["linkedin-account"], () =>
-    linkedinService().getAccount()
+  const { data: account } = useQueryWithTokenRefresh(
+    ["linkedin-account", workspaceId],
+    () => linkedinService(workspaceId).getAccount(),
+    { enabled: !!workspaceId }
   );
-
   const accountName = account?.name ?? "LinkedIn User";
 
   const approveMutation = useMutationWithTokenRefresh(
-    (id: string) => postsService().approvePost(id),
+    (id: string) => postsService(workspaceId).approvePost(id),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
-        queryClient.invalidateQueries({ queryKey: ["post-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["post-stats", workspaceId] });
         toast.success("Post approved!");
         setApprovingId(null);
       },
@@ -209,12 +208,12 @@ export default function ReviewApprovalSection() {
   );
 
   const rejectMutation = useMutationWithTokenRefresh(
-    (id: string) => postsService().rejectPost(id),
+    (id: string) => postsService(workspaceId).rejectPost(id),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
-        queryClient.invalidateQueries({ queryKey: ["post-stats"] });
-        toast.success("Post rejected.");
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["post-stats", workspaceId] });
+        toast.success("Post deleted.");
         setRejectPost(null);
         setRejectingId(null);
       },
@@ -227,10 +226,10 @@ export default function ReviewApprovalSection() {
 
   const regeneratePostMutation = useMutationWithTokenRefresh(
     ({ id, opts }: { id: string; opts: RegeneratePostOptions }) =>
-      postsService().regeneratePost(id, opts),
+      postsService(workspaceId).regeneratePost(id, opts),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
         toast.success("Post regenerated!");
         setRegeneratingId(null);
         setRegenerateTarget(null);
@@ -243,10 +242,11 @@ export default function ReviewApprovalSection() {
   );
 
   const generateImageMutation = useMutationWithTokenRefresh(
-    ({ id, prompt }: { id: string; prompt: string }) => postsService().generateImage(id, prompt),
+    ({ id, prompt }: { id: string; prompt: string }) =>
+      postsService(workspaceId).generateImage(id, prompt),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["posts", "draft"] });
+        queryClient.invalidateQueries({ queryKey: ["posts", "draft", workspaceId] });
         toast.success("Image generated!");
         setGeneratingImageId(null);
       },
@@ -277,7 +277,6 @@ export default function ReviewApprovalSection() {
 
   return (
     <div>
-      {/* Section header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <h2 className="text-base font-semibold text-gray-900">Review &amp; Approval</h2>
@@ -289,7 +288,6 @@ export default function ReviewApprovalSection() {
         </div>
       </div>
 
-      {/* Loading skeleton */}
       {isLoading && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {[0, 1].map((i) => (
@@ -298,7 +296,6 @@ export default function ReviewApprovalSection() {
         </div>
       )}
 
-      {/* Generating state — shown while API call is in-flight OR waiting for new posts to arrive */}
       {!isLoading && (isTextGenerating || isGenerating) && (
         <div className="mb-4 rounded-xl border border-dashed border-blue-200 bg-blue-50 py-12 text-center">
           <LuLoader className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-500" />
@@ -307,14 +304,12 @@ export default function ReviewApprovalSection() {
         </div>
       )}
 
-      {/* Empty state */}
       {!isLoading && !isTextGenerating && !isGenerating && posts.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-200 bg-white py-12 text-center">
           <p className="text-sm text-gray-400">No drafts awaiting review.</p>
         </div>
       )}
 
-      {/* Draft post cards */}
       {!isLoading && posts.length > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {posts.map((post) => {
@@ -326,7 +321,6 @@ export default function ReviewApprovalSection() {
                 key={post.id}
                 className="flex flex-col rounded-xl border border-gray-200 bg-white p-5"
               >
-                {/* Post header */}
                 <div className="mb-3 flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
@@ -345,12 +339,10 @@ export default function ReviewApprovalSection() {
                   </span>
                 </div>
 
-                {/* Post body */}
                 <div className="mb-3 flex-1 whitespace-pre-line text-sm leading-relaxed text-gray-700">
                   {post.body}
                 </div>
 
-                {/* Image */}
                 {post.image_status === "pending" ? (
                   <div className="mb-3 flex h-40 w-full items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50">
                     <div className="flex flex-col items-center gap-2">
@@ -368,7 +360,6 @@ export default function ReviewApprovalSection() {
                   />
                 ) : null}
 
-                {/* Hashtags */}
                 {hashtags.length > 0 && (
                   <div className="mb-4 flex flex-wrap gap-1.5">
                     {hashtags.map((tag) => (
@@ -379,7 +370,6 @@ export default function ReviewApprovalSection() {
                   </div>
                 )}
 
-                {/* Action buttons */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -429,7 +419,6 @@ export default function ReviewApprovalSection() {
         </div>
       )}
 
-      {/* Regenerate post confirmation modal */}
       <RegeneratePostConfirmModal
         key={regenerateTarget?.id ?? "no-regenerate"}
         isOpen={regenerateTarget !== null}
@@ -447,7 +436,6 @@ export default function ReviewApprovalSection() {
         }}
       />
 
-      {/* Edit modal */}
       <EditPostModal
         key={editPost?.id ?? "no-post"}
         isOpen={editPost !== null}
@@ -456,7 +444,6 @@ export default function ReviewApprovalSection() {
         accountName={accountName}
       />
 
-      {/* Reject confirmation modal */}
       <RejectConfirmModal
         isOpen={rejectPost !== null}
         onClose={() => {

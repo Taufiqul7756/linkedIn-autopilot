@@ -10,6 +10,7 @@ import { postsService } from "@/service/postsService";
 import { websiteService } from "@/service/websiteService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { PostStatsType } from "@/types/Post";
 import LinkedInManageModal from "./LinkedInManageModal";
 import KnowledgeBaseUploadModal from "./KnowledgeBaseUploadModal";
@@ -38,12 +39,7 @@ function buildStatCards(stats: PostStatsType | undefined) {
       noteColor: "green",
     },
     { label: "failed", value: stats?.failed ?? "—", note: null, noteColor: "" },
-    {
-      label: "published this week",
-      value: pw ?? "—",
-      note: null,
-      noteColor: "",
-    },
+    { label: "published this week", value: pw ?? "—", note: null, noteColor: "" },
     {
       label: "next scheduled",
       value: formatNextScheduled(stats?.next_scheduled_at),
@@ -69,50 +65,48 @@ export default function AccountSection() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
+
   const code = searchParams.get("code");
   const state = searchParams.get("state");
 
   // Fetch live account status
   const { data: account, isLoading: accountLoading } = useQueryWithTokenRefresh(
-    ["linkedin-account"],
-    () => linkedinService().getAccount()
+    ["linkedin-account", workspaceId],
+    () => linkedinService(workspaceId).getAccount(),
+    { enabled: !!workspaceId }
   );
 
-  // Handle OAuth callback — fires once per unique state value (survives reloads)
+  // Handle OAuth callback
   useEffect(() => {
     if (!code || !state) return;
-
     const sessionKey = `linkedin_callback_${state}`;
     if (sessionStorage.getItem(sessionKey)) {
-      // Already handled — just clean the URL
       router.replace("/linkedin-autopilot");
       return;
     }
-
     sessionStorage.setItem(sessionKey, "1");
-
-    linkedinService()
+    linkedinService(workspaceId)
       .handleCallback(code, state)
       .then((result) => {
         if (result) {
-          queryClient.invalidateQueries({ queryKey: ["linkedin-account"] });
+          queryClient.invalidateQueries({ queryKey: ["linkedin-account", workspaceId] });
           toast.success("LinkedIn account connected!");
         } else {
           toast.error("Failed to connect LinkedIn account.");
         }
       })
-      .catch(() => {
-        toast.error("Failed to connect LinkedIn account.");
-      })
-      .finally(() => {
-        router.replace("/linkedin-autopilot");
-      });
-  }, [code, state, queryClient, router]);
+      .catch(() => toast.error("Failed to connect LinkedIn account."))
+      .finally(() => router.replace("/linkedin-autopilot"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, state]);
 
   const handleConnect = async () => {
+    if (!workspaceId) return;
     setIsConnecting(true);
     try {
-      const result = await linkedinService().getConnectUrl();
+      const result = await linkedinService(workspaceId).getConnectUrl();
       if (result?.authorize_url) {
         window.location.href = result.authorize_url;
       } else {
@@ -126,10 +120,11 @@ export default function AccountSection() {
   };
 
   const handleDisconnect = async () => {
+    if (!workspaceId) return;
     setIsDisconnecting(true);
     try {
-      await linkedinService().disconnectAccount();
-      queryClient.invalidateQueries({ queryKey: ["linkedin-account"] });
+      await linkedinService(workspaceId).disconnectAccount();
+      queryClient.invalidateQueries({ queryKey: ["linkedin-account", workspaceId] });
       toast.success("LinkedIn account disconnected.");
       setLinkedInModalOpen(false);
     } catch {
@@ -141,11 +136,12 @@ export default function AccountSection() {
 
   const isConnected = account?.connected ?? false;
 
-  // Fetch website knowledge base — poll while any entry is still processing
+  // Fetch websites
   const { data: websites, isLoading: websitesLoading } = useQueryWithTokenRefresh(
-    ["websites"],
-    () => websiteService().getWebsites(),
+    ["websites", workspaceId],
+    () => websiteService(workspaceId).getWebsites(),
     {
+      enabled: !!workspaceId,
       refetchInterval: (query) => {
         const results = query.state.data?.results ?? [];
         const isProcessing = results.some((w) => w.status === "pending" || w.status === "crawling");
@@ -156,20 +152,20 @@ export default function AccountSection() {
   const website = websites?.results?.[0];
 
   // Fetch post stats
-  const { data: postStats } = useQueryWithTokenRefresh(["post-stats"], () =>
-    postsService().getPostStats()
+  const { data: postStats } = useQueryWithTokenRefresh(
+    ["post-stats", workspaceId],
+    () => postsService(workspaceId).getPostStats(),
+    { enabled: !!workspaceId }
   );
 
   const recrawl = useMutationWithTokenRefresh(
-    () => websiteService().recrawl(website!.id, website!.url),
+    () => websiteService(workspaceId).recrawl(website!.id, website!.url),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["websites"] });
+        queryClient.invalidateQueries({ queryKey: ["websites", workspaceId] });
         toast.success("Re-crawl started!");
       },
-      onError: () => {
-        toast.error("Failed to start re-crawl.");
-      },
+      onError: () => toast.error("Failed to start re-crawl."),
     }
   );
 
@@ -179,20 +175,20 @@ export default function AccountSection() {
     if (website.status === "pending" || website.status === "crawling")
       return (
         <span className="flex items-center gap-1 text-xs font-medium text-amber-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
           {website.status === "crawling" ? "Crawling" : "Indexing"}
         </span>
       );
     if (website.status === "error")
       return (
         <span className="flex items-center gap-1 text-xs font-medium text-red-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500" />
           Error
         </span>
       );
     return (
       <span className="flex items-center gap-1 text-xs font-medium text-green-600">
-        <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
         Ready
       </span>
     );
@@ -207,24 +203,24 @@ export default function AccountSection() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600">
             <FaLinkedinIn className="h-5 w-5 text-white" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-gray-900">LinkedIn account</span>
               {accountLoading ? (
                 <span className="h-4 w-20 animate-pulse rounded bg-gray-200" />
               ) : isConnected ? (
                 <span className="flex items-center gap-1 text-xs font-medium text-green-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
                   Connected
                 </span>
               ) : (
                 <span className="flex items-center gap-1 text-xs font-medium text-gray-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-gray-400 inline-block" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-400" />
                   Not connected
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="mt-0.5 text-xs text-gray-500">
               {accountLoading
                 ? "Loading..."
                 : isConnected
@@ -245,12 +241,12 @@ export default function AccountSection() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
             <LuGlobe className="h-5 w-5 text-violet-600" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-gray-900">Website knowledge base</span>
               {websiteStatusBadge()}
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="mt-0.5 text-xs text-gray-500">
               {websitesLoading ? (
                 "Loading..."
               ) : website ? (
@@ -283,7 +279,7 @@ export default function AccountSection() {
                 website?.status === "crawling" ||
                 website?.status === "pending"
               }
-              className="flex items-center gap-1.5 shrink-0 rounded-lg border border-gray-200 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
             >
               <LuRefreshCw
                 className={`h-3.5 w-3.5 ${

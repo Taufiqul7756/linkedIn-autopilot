@@ -15,6 +15,7 @@ import Modal from "@/components/ui/Modal";
 import { documentService } from "@/service/documentService";
 import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { DocumentType } from "@/types/Document";
 import { cn } from "@/utils/cn";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
@@ -23,13 +24,6 @@ interface KnowledgeBaseUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const SCOPE_OPTIONS = [
-  { value: "corporate", label: "Corporate" },
-  { value: "personal", label: "Personal" },
-] as const;
-
-type Scope = (typeof SCOPE_OPTIONS)[number]["value"];
 
 function DocStatusIcon({ status }: { status: DocumentType["status"] }) {
   if (status === "ready") return <LuCircleCheck className="h-4 w-4 shrink-0 text-green-500" />;
@@ -52,15 +46,16 @@ export default function KnowledgeBaseUploadModal({
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [scope, setScope] = useState<Scope>("corporate");
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id ?? "";
 
   const deleteDocument = useMutationWithTokenRefresh(
-    (id: string) => documentService().deleteDocument(id),
+    (id: string) => documentService(workspaceId).deleteDocument(id),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["documents"] });
+        queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] });
         toast.success("Document deleted.");
       },
       onError: (error: unknown) => {
@@ -70,10 +65,10 @@ export default function KnowledgeBaseUploadModal({
   );
 
   const { data: docsData, isLoading: docsLoading } = useQueryWithTokenRefresh(
-    ["documents"],
-    () => documentService().getDocuments(),
+    ["documents", workspaceId],
+    () => documentService(workspaceId).getDocuments(),
     {
-      enabled: isOpen,
+      enabled: isOpen && !!workspaceId,
       refetchInterval: (query) => {
         const results = query.state.data?.results ?? [];
         const isProcessing = results.some(
@@ -108,7 +103,7 @@ export default function KnowledgeBaseUploadModal({
     setIsUploading(true);
     try {
       const results = await Promise.all(
-        files.map((f) => documentService().uploadDocument(f, scope))
+        files.map((f) => documentService(workspaceId).uploadDocument(f))
       );
       const failed = results.filter((r) => !r).length;
       if (failed === 0) {
@@ -117,7 +112,7 @@ export default function KnowledgeBaseUploadModal({
         toast.error(`${failed} file${failed > 1 ? "s" : ""} failed to upload.`);
       }
       setFiles([]);
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] });
     } catch {
       toast.error("Upload failed. Please try again.");
     } finally {
@@ -170,23 +165,6 @@ export default function KnowledgeBaseUploadModal({
           />
         </div>
 
-        {/* Scope selector */}
-        <div className="mt-3">
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Scope</label>
-          <select
-            value={scope}
-            onChange={(e) => setScope(e.target.value as Scope)}
-            className="h-9 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          >
-            {SCOPE_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Staged files (not yet uploaded) */}
         {files.length > 0 && (
           <ul className="mt-3 space-y-2">
             {files.map((file, i) => (
@@ -194,9 +172,9 @@ export default function KnowledgeBaseUploadModal({
                 key={i}
                 className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-3 py-2"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex min-w-0 items-center gap-2.5">
                   <LuFileText className="h-4 w-4 shrink-0 text-blue-500" />
-                  <span className="text-xs font-medium text-gray-700 truncate max-w-xs">
+                  <span className="max-w-xs truncate text-xs font-medium text-gray-700">
                     {file.name}
                   </span>
                   <span className="shrink-0 text-xs text-gray-400">{formatSize(file.size)}</span>
@@ -214,7 +192,6 @@ export default function KnowledgeBaseUploadModal({
         )}
       </div>
 
-      {/* Upload button */}
       {files.length > 0 && (
         <div className="mb-5 flex justify-end">
           <button
@@ -234,7 +211,7 @@ export default function KnowledgeBaseUploadModal({
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-400">
           Uploaded documents
           {docsData?.count ? (
-            <span className="ml-1.5 normal-case font-normal text-gray-400">({docsData.count})</span>
+            <span className="ml-1.5 font-normal normal-case text-gray-400">({docsData.count})</span>
           ) : null}
         </label>
 
@@ -283,7 +260,6 @@ export default function KnowledgeBaseUploadModal({
         )}
       </div>
 
-      {/* Close */}
       <div className="mt-5 flex justify-end">
         <button
           onClick={onClose}

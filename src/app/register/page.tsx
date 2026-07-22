@@ -8,24 +8,30 @@ import { FaLinkedinIn } from "react-icons/fa";
 import { LuEye, LuEyeOff } from "react-icons/lu";
 import { authService } from "@/service/authService";
 import { useAuth } from "@/context/AuthContext";
-import { loginSchema } from "@/lib/validations/authSchema";
+import { registerSchema } from "@/lib/validations/authSchema";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
 import { LoginResponse } from "@/types/Auth";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    username?: string;
+    password?: string;
+  }>({});
 
-  const loginMutation = useMutation({
-    mutationFn: (data: { email: string; password: string }) => authService().login(data),
+  const registerMutation = useMutation({
+    mutationFn: (data: { email: string; username: string; password: string }) =>
+      authService().register(data),
     onSuccess: (data: LoginResponse) => {
       login(data);
-      toast.success("Welcome back!");
+      toast.success("Account created!");
       router.replace("/linkedin-autopilot");
     },
     onError: (error: unknown) => {
@@ -35,17 +41,18 @@ export default function LoginPage() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const result = loginSchema.safeParse({ email, password });
+    const result = registerSchema.safeParse({ email, username, password });
     if (!result.success) {
       const errs = result.error.flatten().fieldErrors;
       setFieldErrors({
         email: errs.email?.[0],
+        username: errs.username?.[0],
         password: errs.password?.[0],
       });
       return;
     }
     setFieldErrors({});
-    loginMutation.mutate(result.data);
+    registerMutation.mutate(result.data);
   };
 
   return (
@@ -57,8 +64,8 @@ export default function LoginPage() {
             <span className="text-xl font-bold text-white">R</span>
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-semibold text-gray-900">Welcome back</h1>
-            <p className="mt-1 text-sm text-gray-500">Sign in to your Relay account</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Create your account</h1>
+            <p className="mt-1 text-sm text-gray-500">Get started with Relay</p>
           </div>
         </div>
 
@@ -84,6 +91,25 @@ export default function LoginPage() {
               )}
             </div>
 
+            {/* Username */}
+            <div>
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                autoComplete="username"
+                placeholder="yourname"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              />
+              {fieldErrors.username && (
+                <p className="mt-1.5 text-xs text-red-500">{fieldErrors.username}</p>
+              )}
+            </div>
+
             {/* Password */}
             <div>
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -93,7 +119,7 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -115,29 +141,29 @@ export default function LoginPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loginMutation.isPending}
+              disabled={registerMutation.isPending}
               className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loginMutation.isPending ? (
+              {registerMutation.isPending ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                "Sign in"
+                "Create account"
               )}
             </button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-gray-500">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-blue-600 hover:underline">
+              Sign in
+            </Link>
+          </p>
         </div>
 
-        <p className="mt-5 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-blue-600 hover:underline">
-            Register
-          </Link>
-        </p>
-
-        <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+        <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400">
           <FaLinkedinIn className="h-3 w-3" />
           Powered by LinkedIn Autopilot
         </p>

@@ -37,8 +37,8 @@
 
 ### Account & Knowledge Base Section
 - [x] LinkedIn account card (Connected status, Manage button → LinkedInManageModal)
-- [x] Website knowledge base card (Ready status, Add Sources → AddUrlModal with existing URLs list + delete, Add to Knowledge Base → KnowledgeBaseUploadModal with docs list + delete, Re-crawl button)
-- [x] 5 stats cards row (Awaiting · Approved · Scheduled · Published · Avg Engagement) — replaced with real API (see Phase 5)
+- [x] Website knowledge base card (Ready status, Add Sources → AddUrlModal, Add to Knowledge Base → KnowledgeBaseUploadModal, Re-crawl button)
+- [x] 5 stats cards row (Awaiting · Approved · Scheduled · Published · Avg Engagement) — real API
 
 ### Generate Posts Section
 - [x] Number of posts free-form input (min 1, max 50) + Use Emoji toggle (Yes/No)
@@ -53,19 +53,19 @@
 ### Review & Approval Section
 - [x] Section header with awaiting badge
 - [x] Two-column draft post cards
-- [x] Author info, Draft badge, post body, image, hashtags (no CTA)
+- [x] Author info, Draft badge, post body, image, hashtags
 - [x] Post-generate polling: spins every 5s, stops when posts arrive
-- [x] Edit button → EditPostModal (content + image upload + hashtags)
-- [x] Regenerate Post button → RegeneratePostConfirmModal (warns current version will be lost; future API)
-- [x] Regenerate Image button → toggles image prompt textarea panel with Generate Image button (disabled, future API)
+- [x] Edit button → EditPostModal
+- [x] Regenerate Post button → RegeneratePostConfirmModal
+- [x] Regenerate Image button → floating prompt dropdown → Generate Image API
 - [x] Delete button → RejectConfirmModal → DELETE API
 - [x] Approve button → POST approve API
 
 ### Post Management Section
-- [x] Filter dropdown: All / Approved / Scheduled / Published / Failed (no Draft)
-- [x] Drafts excluded server-side via `exclude_status=draft` param (belong in Review & Approval)
-- [x] Page size selector (2 / 5 / 10 / 15 / 20), default 10 — passed as `page_size` to API
-- [x] Pagination bar always visible (Previous / Next, page info)
+- [x] Filter dropdown: All / Approved / Scheduled / Published / Failed
+- [x] Drafts excluded server-side via `exclude_status=draft`
+- [x] Page size selector (2 / 5 / 10 / 15 / 20), default 10
+- [x] Pagination bar always visible
 - [x] Checkbox column with select-all (indeterminate state)
 - [x] Bulk delete when ≥ 2 rows selected
 - [x] Table: 8 columns (☐ + POST + CREATED + SCHEDULED + PUBLISHED + STATUS + ENGAGEMENT + ACTIONS)
@@ -78,56 +78,109 @@
 
 ### Autopilot Agent Workflow Section
 - [x] Section header with Live badge
-- [x] Orchestrator banner (Coordinating status, agents active / posts in flight / gate count)
+- [x] Orchestrator banner
 - [x] 7 agent cards in 4+3 grid
-- [x] Per-agent status badges: Connected · Working (spinning) · Needs you
+- [x] Per-agent status badges
 
-### Modals (reusable base + 6 feature modals)
-- [x] `Modal.tsx` — base (backdrop blur, ESC, title, close, widths: sm/md/lg/xl/2xl, max-h-[90vh] scrollable body)
-- [x] `LinkedInManageModal` — connected account info + Connect + Disconnect
-- [x] `KnowledgeBaseUploadModal` — drag-and-drop file upload (PDF/DOC/DOCX) + text textarea
-- [x] `ScheduleModal` — date + time + timezone; `onConfirm(scheduledAt: string)` + `isLoading` props
-- [x] `EditPostModal` — content textarea (char count) + image (view/remove/auto-upload on select) + hashtags
-- [x] `RejectConfirmModal` — warning + post excerpt + Cancel + Delete post (used in Review & Approval and Post Management)
-- [x] `ViewPostModal` — full post detail fetched from API; status/tone/style chips, body, image, hashtags, dates, engagement (no CTA)
-- [x] `RegeneratePostConfirmModal` — amber icon, post excerpt, loss warning, Cancel + Regenerate
+### Modals
+- [x] `Modal.tsx` — base modal
+- [x] `LinkedInManageModal`
+- [x] `KnowledgeBaseUploadModal`
+- [x] `ScheduleModal`
+- [x] `EditPostModal`
+- [x] `RejectConfirmModal`
+- [x] `ViewPostModal`
+- [x] `RegeneratePostConfirmModal`
 
 ## Phase 4 — Polish
 
-- [x] Fix page background color (blue-lavender `#E9ECF5`)
-- [x] Fix Generate Posts card background (gradient `#ECEEF8` → white)
-- [x] Fix Agent Workflow section background to match design
+- [x] Fix page background color
+- [x] Fix Generate Posts card background
+- [x] Fix Agent Workflow section background
 - [x] Global `cursor: pointer` for buttons and checkboxes
-- [x] Responsive layout (mobile / tablet / MacBook / desktop breakpoints)
-- [x] Dark mode removed (not needed for this page)
+- [x] Responsive layout
+- [x] Dark mode removed
 - [ ] Loading skeleton states
 - [ ] Empty states (no posts, no connection)
 
-## Phase 5 — Real Integration
+## Phase 5 — Real Integration (Pre-workspace)
 
 - [x] LinkedIn OAuth connect flow
-- [x] Post stats grid — `GET /content/posts/stats/`
-- [x] Suggest prompts — `POST /content/posts/suggest_prompts/`
-- [x] Generate posts — `POST /content/posts/generate/` (synchronous; posts created immediately, images generated async via `image_status: "pending"`)
-- [x] Post-generate polling via `["posts-generating"]` React Query cache flag — polls every 5s until all drafts have `image_status !== "pending"`
-- [x] Image generation spinner in draft cards — blue dashed placeholder shown while `image_status === "pending"`
-- [x] Draft posts list — `GET /content/posts/?status=draft`
-- [x] Approve post — `POST /content/posts/{id}/approve/`
-- [x] Reject / delete post — `DELETE /content/posts/{id}/`
-- [x] Post management table — `GET /content/posts/?page_size=N&page=N&status=X`
-- [x] Schedule post — `POST /content/posts/{id}/schedule/` with `{ scheduled_at }`
-- [x] View single post — `GET /content/posts/{id}/`
-- [x] Upload post image — `POST /content/posts/{id}/upload_image/` (FormData, `image` field, auto-triggers on file select)
-- [x] Edit post body/hashtags — `PATCH /content/posts/{id}/`
-- [x] Logout — `POST /auth/logout/` + clear localStorage + redirect to `/login`
-- [x] Website URLs list + delete — `GET /websites/`, `DELETE /websites/{id}/`
-- [x] Documents list + delete — `GET /documents/`, `DELETE /documents/{id}/`
-- [x] Post management draft exclusion — `exclude_status=draft` query param
+- [x] Post stats grid
+- [x] Suggest prompts
+- [x] Generate posts (synchronous + image polling)
+- [x] Draft posts list
+- [x] Approve post
+- [x] Delete post
+- [x] Post management table
+- [x] Schedule post
+- [x] View single post
+- [x] Upload post image
+- [x] Edit post body/hashtags
+- [x] Logout
+- [x] Website URLs list + delete
+- [x] Documents list + delete
+- [x] Post management draft exclusion
 - [x] Delete confirmation modal on Post Management row delete
+- [x] Regenerate Image API
+
+## Phase 6 — Workspace Migration (CURRENT)
+
+### Auth & Register
+- [ ] Register page (`src/app/register/page.tsx`) — see auth tasks Phase 2
+- [ ] WorkspaceContext + WorkspaceProvider — see auth tasks Phase 3
+
+### Service URL Migration
+All service files must prefix endpoints with `/workspaces/${workspaceId}/` using `activeWorkspace.id` from `WorkspaceContext`.
+
+- [ ] `src/service/postsService.ts` — add `workspaceId` param to factory; update all endpoints:
+  - `GET /workspaces/{id}/content/posts/`
+  - `POST /workspaces/{id}/content/posts/generate/` — remove `scope` from body
+  - `POST /workspaces/{id}/content/posts/suggest_prompts/` — remove `scope` from body
+  - `GET /workspaces/{id}/content/posts/stats/`
+  - `POST /workspaces/{id}/content/posts/{postId}/regenerate/`
+  - `POST /workspaces/{id}/content/posts/{postId}/approve/`
+  - `POST /workspaces/{id}/content/posts/{postId}/schedule/`
+  - `POST /workspaces/{id}/content/posts/{postId}/upload_image/`
+  - `PATCH /workspaces/{id}/content/posts/{postId}/`
+  - `DELETE /workspaces/{id}/content/posts/{postId}/`
+  - `POST /workspaces/{id}/content/posts/{postId}/generate_image/`
+  - `POST /workspaces/{id}/content/posts/{postId}/refresh_metrics/`
+
+- [ ] `src/service/websiteService.ts` — add `workspaceId` param; update all endpoints:
+  - `GET /workspaces/{id}/websites/` — remove `?scope=`
+  - `POST /workspaces/{id}/websites/` — remove `scope` from body
+  - `DELETE /workspaces/{id}/websites/{siteId}/`
+  - `POST /workspaces/{id}/websites/{siteId}/recrawl/`
+
+- [ ] `src/service/documentService.ts` — add `workspaceId` param; update all endpoints:
+  - `GET /workspaces/{id}/documents/` — remove `?scope=`
+  - `POST /workspaces/{id}/documents/` — remove `scope` from body
+  - `DELETE /workspaces/{id}/documents/{docId}/`
+  - `POST /workspaces/{id}/documents/{docId}/reextract/`
+
+- [ ] LinkedIn service endpoints:
+  - `GET /workspaces/{id}/linkedin/connect/` (returns `{ authorize_url }`)
+  - `GET /workspaces/{id}/linkedin/account/`
+  - `DELETE /workspaces/{id}/linkedin/account/`
+  - Keep `/api/v1/linkedin/callback/` top-level (unchanged)
+
+### Component updates
+- [ ] All components that call services must pass `activeWorkspace.id` from `useWorkspace()` hook
+- [ ] Navbar: add workspace switcher dropdown (see auth tasks Phase 4)
+- [ ] Handle `404` responses on workspace-scoped requests — toast + fallback
+
+### React Query cache invalidation on workspace switch
+- [ ] On `setActiveWorkspace()` → call `queryClient.invalidateQueries()` to clear all cached data
+
+## Phase 7 — Future
+
 - [ ] Website crawler + knowledge base API
-- [ ] Real-time agent status polling
+- [ ] Real-time agent status polling (WebSocket)
 - [ ] Calendar view page
 - [ ] Bulk delete confirmation modal
 - [ ] Run Agent API call
-- [x] Regenerate Image API — `POST /content/posts/{id}/generate_image/` with `{ image_prompt }`; auto-updates card image_url on success
-- [ ] Regenerate Post API
+- [ ] Regenerate Post API wired (modal exists, API now available)
+- [ ] Refresh metrics button per post
+- [ ] Image removal via PATCH (backend support needed)
+- [ ] Hashtag PATCH (backend fixing)

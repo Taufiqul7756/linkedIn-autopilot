@@ -14,6 +14,14 @@ export const authService = () => ({
     const response = await authApi.post<LoginResponse>("/auth/login/", data);
     return response.data;
   },
+  register: async (data: {
+    email: string;
+    username: string;
+    password: string;
+  }): Promise<LoginResponse> => {
+    const response = await authApi.post<LoginResponse>("/auth/register/", data);
+    return response.data;
+  },
   logout: () => post("/auth/logout/"),
   refresh: () => post("/auth/refresh/"),
 });

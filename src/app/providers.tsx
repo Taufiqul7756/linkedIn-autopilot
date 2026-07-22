@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "react-hot-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AuthProvider } from "@/context/AuthContext";
+import { WorkspaceProvider } from "@/context/WorkspaceContext";
 import AuthGuard from "@/components/layout/AuthGuard";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -12,7 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
-          <AuthGuard>{children}</AuthGuard>
+          <WorkspaceProvider>
+            <AuthGuard>{children}</AuthGuard>
+          </WorkspaceProvider>
         </AuthProvider>
         <Toaster position="top-right" />
       </ThemeProvider>

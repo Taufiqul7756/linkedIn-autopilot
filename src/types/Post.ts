@@ -54,7 +54,6 @@ export type GeneratePostsBody = {
   content_style: string;
   use_emoji: boolean;
   count: number;
-  scope: "corporate" | "personal";
 };
 
 export type GeneratePostsResponse = {
