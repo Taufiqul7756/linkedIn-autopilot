@@ -13,6 +13,10 @@ export type LinkedInCallbackResponse = {
 
 export type LinkedInAccountResponse = {
   connected: boolean;
+  id: string;
   member_urn: string;
   name: string;
+  scope: string;
+  expires_at: string;
+  created_at: string;
 };

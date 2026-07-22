@@ -91,7 +91,8 @@ export default function AccountSection() {
       .handleCallback(code, state)
       .then((result) => {
         if (result) {
-          queryClient.invalidateQueries({ queryKey: ["linkedin-account", workspaceId] });
+          // Invalidate by prefix — workspaceId may be "" at this point (stale closure on redirect)
+          queryClient.invalidateQueries({ queryKey: ["linkedin-account"] });
           toast.success("LinkedIn account connected!");
         } else {
           toast.error("Failed to connect LinkedIn account.");

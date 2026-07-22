@@ -72,7 +72,15 @@ export default function AccountConnectionSection() {
       <LinkedInManageModal
         isOpen={linkedInModalOpen}
         onClose={() => setLinkedInModalOpen(false)}
-        account={{ connected: true, member_urn: "", name: "Jordan Rivera" }}
+        account={{
+          connected: true,
+          id: "",
+          member_urn: "",
+          name: "Jordan Rivera",
+          scope: "",
+          expires_at: "",
+          created_at: "",
+        }}
         onConnect={() => {}}
         isConnecting={false}
         onDisconnect={() => {}}
