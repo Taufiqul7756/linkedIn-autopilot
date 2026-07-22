@@ -16,7 +16,9 @@ function WorkspaceUrlSync() {
   const pathname = usePathname();
   const { workspaces, activeWorkspace, setActiveWorkspace } = useWorkspace();
 
-  // On mount: if URL has ?workspace=<id>, sync it to context
+  // Sync URL ?workspace= → context. Only fires when URL or workspace list changes,
+  // NOT when activeWorkspace changes — avoids reverting Navbar-initiated switches
+  // where setActiveWorkspace fires before router.replace updates searchParams.
   useEffect(() => {
     const urlId = searchParams.get("workspace");
     if (!urlId || workspaces.length === 0) return;
@@ -24,7 +26,8 @@ function WorkspaceUrlSync() {
     if (found && found.id !== activeWorkspace?.id) {
       setActiveWorkspace(urlId);
     }
-  }, [searchParams, workspaces, activeWorkspace, setActiveWorkspace]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, workspaces, setActiveWorkspace]);
 
   // On mount: if no ?workspace= in URL but we have an active workspace, add it
   useEffect(() => {

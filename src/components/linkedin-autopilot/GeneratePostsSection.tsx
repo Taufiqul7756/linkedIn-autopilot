@@ -11,6 +11,7 @@ import { useQueryWithTokenRefresh } from "@/hooks/useQueryWithTokenRefresh";
 import { useMutationWithTokenRefresh } from "@/hooks/useMutationWithTokenRefresh";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { extractErrorMessage } from "@/utils/extractErrorMessage";
+import AddUrlModal from "./AddUrlModal";
 
 const TONE_OPTIONS = [
   { value: "professional", label: "Professional" },
@@ -35,6 +36,7 @@ export default function GeneratePostsSection() {
   const { activeWorkspace } = useWorkspace();
   const workspaceId = activeWorkspace?.id ?? "";
 
+  const [addUrlOpen, setAddUrlOpen] = useState(false);
   const [postCount, setPostCount] = useState<number | "">("");
   const [postCountError, setPostCountError] = useState("");
   const [tone, setTone] = useState("professional");
@@ -110,13 +112,21 @@ export default function GeneratePostsSection() {
   );
 
   const handleSuggest = () => {
-    if (!website) return;
+    if (!website) {
+      toast("Please add a website or document to your knowledge base first.", { icon: "📚" });
+      setAddUrlOpen(true);
+      return;
+    }
     setSuggestions([]);
     suggestMutation.mutate(website.id);
   };
 
   const handleGenerate = () => {
-    if (!website) return;
+    if (!website) {
+      toast("Please add a website or document to your knowledge base first.", { icon: "📚" });
+      setAddUrlOpen(true);
+      return;
+    }
     if (postCount === "" || postCount < 1) {
       setPostCountError("Enter how many posts to generate.");
       return;
@@ -324,8 +334,11 @@ export default function GeneratePostsSection() {
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={handleSuggest}
-          disabled={!canAct || suggestMutation.isPending}
-          className="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-100 disabled:opacity-40"
+          disabled={suggestMutation.isPending}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-100 disabled:opacity-40",
+            !canAct && "opacity-40"
+          )}
         >
           <LuSparkles className={cn("h-3.5 w-3.5", suggestMutation.isPending && "animate-spin")} />
           {suggestMutation.isPending ? "Suggesting…" : "Suggest prompts"}
@@ -337,14 +350,19 @@ export default function GeneratePostsSection() {
           </p>
           <button
             onClick={handleGenerate}
-            disabled={!canAct || generateMutation.isPending || postCount === ""}
-            className="flex items-center gap-2 self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:self-auto"
+            disabled={generateMutation.isPending || postCount === ""}
+            className={cn(
+              "flex items-center gap-2 self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:self-auto",
+              !canAct && "opacity-50"
+            )}
           >
             <LuArrowRight className="h-4 w-4" />
             {generateMutation.isPending ? "Generating…" : "Generate"}
           </button>
         </div>
       </div>
+
+      <AddUrlModal isOpen={addUrlOpen} onClose={() => setAddUrlOpen(false)} />
     </div>
   );
 }
